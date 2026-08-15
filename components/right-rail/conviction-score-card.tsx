@@ -28,7 +28,7 @@ export function ConvictionScoreCard({ data }: { data: ConvictionScore }) {
           <span className="text-lg font-semibold text-muted-2">Waiting for live data</span>
         ) : (
           <>
-            <span className="text-3xl font-bold leading-none">{data.score}</span>
+            <span className="text-3xl font-bold leading-none text-accent-blue">{data.score}</span>
             <span className="text-sm font-medium text-muted-2">/ 100</span>
           </>
         )}
