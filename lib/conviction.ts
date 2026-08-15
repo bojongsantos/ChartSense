@@ -5,6 +5,8 @@ export interface ConvictionComponent {
   value: number;
   display: string;
   tone: "pass" | "warn" | "fail" | "info";
+  /** Normalized quality 0..1 where higher is better (drives status dot color). */
+  ratio: number;
 }
 
 export interface ConvictionScore {
@@ -32,10 +34,10 @@ export function gradeOfConviction(score: number): ConvictionScore["grade"] {
 }
 
 const interpretationByGrade: Record<ConvictionScore["grade"], string> = {
-  A: "Setup berkualitas tinggi, zona tajam dan belum tersentuh",
-  B: "Setup layak dipertimbangkan, beberapa area bisa diperkuat",
-  C: "Setup marjinal, perhatikan risiko",
-  D: "Setup lemah, tunggu setup yang lebih baik",
+  A: "Setup berkualitas tinggi",
+  B: "Setup layak dipertimbangkan",
+  C: "Setup marjinal",
+  D: "Setup lemah",
   F: "Setup tidak direkomendasikan",
 };
 
@@ -55,6 +57,7 @@ export function buildConviction(input: ConvictionInput): ConvictionScore {
       value: quality,
       display: `+${quality}`,
       tone: quality >= 20 ? "pass" : quality >= 10 ? "warn" : "fail",
+      ratio: quality / 26,
     },
     {
       id: "freshness",
@@ -68,6 +71,7 @@ export function buildConviction(input: ConvictionInput): ConvictionScore {
       value: freshness,
       display: `+${freshness}`,
       tone: strength === "fresh" ? "pass" : strength === "tested" ? "warn" : "fail",
+      ratio: freshness / 22,
     },
     {
       id: "touches",
@@ -76,6 +80,7 @@ export function buildConviction(input: ConvictionInput): ConvictionScore {
       value: touchPenalty,
       display: touchPenalty === 0 ? "0" : `${touchPenalty}`,
       tone: touches === 0 ? "pass" : touches <= 2 ? "warn" : "fail",
+      ratio: touches === 0 ? 1 : touches === 1 ? 0.5 : touches === 2 ? 0.4 : 0.1,
     },
     {
       id: "base",
@@ -84,6 +89,7 @@ export function buildConviction(input: ConvictionInput): ConvictionScore {
       value: BASE,
       display: `+${BASE}`,
       tone: "info",
+      ratio: 1,
     },
   ];
 

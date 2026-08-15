@@ -184,18 +184,6 @@ export interface SentimentData {
   distribution: { label: string; value: number }[];
 }
 
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  time: string;
-}
-
-export interface AiChatSeed {
-  messages: ChatMessage[];
-  suggestions: string[];
-}
-
 export interface SidebarData {
   navCounts: Record<string, number>;
   usage: {
@@ -208,7 +196,6 @@ export interface SidebarData {
 export interface RightRailData {
   market: MarketContext;
   sentiment: SentimentData;
-  chat: AiChatSeed;
 }
 
 export interface DummyBundle {

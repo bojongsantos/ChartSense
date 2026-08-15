@@ -4,8 +4,7 @@ import type { AnalysisResult, MarketContext, ScannerOpportunity, SentimentData }
 import { ConvictionScoreCard } from "@/components/right-rail/conviction-score-card";
 import { MarketContextCard } from "@/components/right-rail/market-context-card";
 import { MarketSentimentCard } from "@/components/right-rail/market-sentiment-card";
-import { AiChatCard } from "@/components/right-rail/ai-chat-card";
-import { marketFallback, sentimentFallback, chatFallback } from "@/lib/static-rail";
+import { marketFallback, sentimentFallback } from "@/lib/static-rail";
 import { buildConviction, type ConvictionScore } from "@/lib/conviction";
 
 interface RightRailProps {
@@ -13,6 +12,9 @@ interface RightRailProps {
   sentiment: SentimentData | null;
   analysis?: AnalysisResult | null;
   opportunities?: ScannerOpportunity[] | null;
+  hideConviction?: boolean;
+  hideMarketContext?: boolean;
+  hideSentiment?: boolean;
 }
 
 const waitingConviction: ConvictionScore = {
@@ -46,7 +48,15 @@ function convictionFromScan(opp: ScannerOpportunity): ConvictionScore {
   });
 }
 
-export function RightRail({ market, sentiment, analysis, opportunities }: RightRailProps) {
+export function RightRail({
+  market,
+  sentiment,
+  analysis,
+  opportunities,
+  hideConviction,
+  hideMarketContext,
+  hideSentiment,
+}: RightRailProps) {
   const conviction =
     analysis !== undefined && analysis !== null
       ? convictionFromAnalysis(analysis)
@@ -54,12 +64,15 @@ export function RightRail({ market, sentiment, analysis, opportunities }: RightR
         ? convictionFromScan(opportunities[0])
         : waitingConviction;
 
+  // When every card is hidden the rail serves no purpose — remove it entirely
+  // so the main content expands to the full remaining viewport width.
+  if (hideConviction && hideMarketContext && hideSentiment) return null;
+
   return (
     <aside className="hidden w-[340px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-surface p-4 xl:flex">
-      <ConvictionScoreCard data={conviction} />
-      <MarketContextCard data={market ?? marketFallback} />
-      <MarketSentimentCard data={sentiment ?? sentimentFallback} />
-      <AiChatCard data={chatFallback} />
+      {!hideConviction && <ConvictionScoreCard data={conviction} />}
+      {!hideMarketContext && <MarketContextCard data={market ?? marketFallback} />}
+      {!hideSentiment && <MarketSentimentCard data={sentiment ?? sentimentFallback} />}
     </aside>
   );
 }

@@ -338,29 +338,6 @@ export const rightRail: RightRailData = {
       { label: "Extreme Greed", value: 15 },
     ],
   },
-  chat: {
-    messages: [
-      {
-        id: "m1",
-        role: "assistant",
-        content: "BTC is in an ascending triangle on the daily. 78% probability of a bullish breakout toward 66,800.",
-        time: "18:41",
-      },
-      {
-        id: "m2",
-        role: "user",
-        content: "What's the invalidation level for this setup?",
-        time: "18:43",
-      },
-      {
-        id: "m3",
-        role: "assistant",
-        content: "A daily close below 58,900 invalidates the setup. Risk-to-reward sits at 2.64.",
-        time: "18:43",
-      },
-    ],
-    suggestions: ["Explain the setup score", "Compare with ETH", "Show similar past patterns"],
-  },
 };
 
 export const dummyBundle: DummyBundle = {

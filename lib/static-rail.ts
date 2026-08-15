@@ -1,4 +1,4 @@
-import type { AiChatSeed, MarketContext, SentimentData } from "./types";
+import type { MarketContext, SentimentData } from "./types";
 
 export const marketFallback: MarketContext = {
   btc: { id: "btc", label: "BTC", value: "—", change: 0, direction: "flat" },
@@ -19,16 +19,4 @@ export const sentimentFallback: SentimentData = {
     { label: "Greed", value: 20 },
     { label: "Extreme Greed", value: 20 },
   ],
-};
-
-export const chatFallback: AiChatSeed = {
-  messages: [
-    {
-      id: "m1",
-      role: "assistant",
-      content: "Select a symbol on the Analysis page — I'll summarize the live setup for you.",
-      time: "now",
-    },
-  ],
-  suggestions: ["Analyze BTC/USDT", "What pattern is forming?", "Explain the setup score"],
 };

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default function PatternsPage() {
   return (
-    <AppShell>
+    <AppShell hideConviction hideMarketContext hideSentiment>
       <PatternsView />
     </AppShell>
   );
