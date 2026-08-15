@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #07070c;
+  --color-surface: #0e0e16;
+  --color-surface-2: #13131d;
+  --color-surface-3: #1a1a28;
+  --color-border: #1e1e2c;
+  --color-border-strong: #2a2a3d;
+  --color-foreground: #f2f2f7;
+  --color-muted: #9a9aab;
+  --color-muted-2: #66667a;
+  --color-accent: #7c5cff;
+  --color-accent-2: #a78bfa;
+  --color-accent-blue: #4f7cff;
+  --color-positive: #22c55e;
+  --color-positive-2: #15803d;
+  --color-negative: #f43f5e;
+  --color-warning: #f59e0b;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #26263a;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #33334c;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #26263a transparent;
+}
+
+@utility card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+@utility gradient-text {
+  background: linear-gradient(135deg, var(--color-accent-2), var(--color-accent-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+}
