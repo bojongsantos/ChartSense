@@ -9,10 +9,16 @@ import {
   ListOrdered,
   Lock,
   Settings2,
+  Users,
+  CreditCard,
+  ScrollText,
 } from "lucide-react";
 
 const NAV = [
   { id: "overview", label: "Overview", href: "/admin", icon: LayoutDashboard },
+  { id: "users", label: "Users", href: "/admin/users", icon: Users },
+  { id: "payments", label: "Payments", href: "/admin/payments", icon: CreditCard },
+  { id: "audit", label: "Audit Log", href: "/admin/audit", icon: ScrollText },
   { id: "watchlist", label: "Watchlist", href: "/admin/watchlist", icon: ListOrdered },
   { id: "scanner", label: "Scanner Log", href: "/admin/scanner", icon: Activity },
   { id: "gating", label: "Plan & Gating", href: "/admin/gating", icon: Lock },
@@ -73,7 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <h1 className="text-sm font-bold tracking-tight">ChartSense Backoffice</h1>
           <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-2">
             <span className="size-1.5 rounded-full bg-positive" />
-            Live · config stored locally
+            Live · PostgreSQL
           </span>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
