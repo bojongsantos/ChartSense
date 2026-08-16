@@ -1,0 +1,69 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { buildPerformance, buildSimilarPatterns, emaSeries, rsiSeries } from "@/core/domain/analysis/analysis-engine";
+import { computeSetupStatus, type SdZone } from "@/core/domain/analysis/supply-demand";
+import type { Candle } from "@/core/domain/models";
+import { setupLockKey } from "@/infrastructure/persistence/browser-setup-lock-store";
+
+function candle(time: number, open: number, high: number, low: number, close: number): Candle {
+  return { time, open, high, low, close, volume: 1_000 };
+}
+
+const zone: SdZone = {
+  id: "demand-test",
+  type: "demand",
+  top: 100,
+  bottom: 95,
+  baseIndex: 0,
+  baseTime: 1,
+  touches: 0,
+  strength: "fresh",
+  active: false,
+  confidence: 80,
+  narrowness: 0.8,
+};
+
+function history(last: Candle): Candle[] {
+  return [
+    candle(1, 100, 101, 99, 100),
+    candle(2, 100, 101, 99, 100),
+    candle(3, 100, 101, 99, 100),
+    last,
+  ];
+}
+
+test("setup state machine covers long outcomes", () => {
+  assert.equal(computeSetupStatus(history(candle(4, 104, 108, 101, 105)), zone, true, 100, 90, 110, 120, 105), "Limit Order");
+  assert.equal(computeSetupStatus(history(candle(4, 105, 111, 101, 108)), zone, true, 100, 90, 110, 120, 108), "Missed");
+  assert.equal(computeSetupStatus(history(candle(4, 101, 105, 99, 100)), zone, true, 100, 90, 110, 120, 99), "Filled");
+  assert.equal(computeSetupStatus(history(candle(4, 101, 108, 99, 106)), zone, true, 100, 90, 110, 120, 106), "Running");
+  assert.equal(computeSetupStatus(history(candle(4, 101, 105, 89, 92)), zone, true, 100, 90, 110, 120, 92), "Invalidated (SL hit)");
+  assert.equal(computeSetupStatus(history(candle(4, 101, 121, 99, 119)), zone, true, 100, 90, 110, 120, 119), "Target 2 reached");
+});
+
+test("setup locks are isolated by symbol and timeframe", () => {
+  assert.equal(setupLockKey("BTCUSDT", "15m"), "chartsense:setup-lock:BTCUSDT:15m");
+  assert.notEqual(setupLockKey("BTCUSDT", "15m"), setupLockKey("BTCUSDT", "1H"));
+});
+
+test("indicators and historical statistics remain finite", () => {
+  const closes = Array.from({ length: 90 }, (_, i) => 100 + Math.sin(i / 3) * 4 + i * 0.08);
+  const candles = closes.map((close, i) => candle(i + 1, close - 0.4, close + 1.2, close - 1.2, close));
+  const ema = emaSeries(closes, 20);
+  const rsi = rsiSeries(closes, 14);
+  assert.equal(ema.length, closes.length);
+  assert.equal(rsi.length, closes.length);
+  assert.ok(ema.every(Number.isFinite));
+  assert.ok(rsi.every((value) => Number.isFinite(value) && value >= 0 && value <= 100));
+
+  const performance = buildPerformance(candles);
+  const maximumWalkForwardSamples = Math.ceil((candles.length - 52) / 3);
+  assert.ok(performance.totalTrades >= 0 && performance.totalTrades <= maximumWalkForwardSamples);
+  assert.ok(performance.successRate >= 0 && performance.successRate <= 100);
+  assert.ok(Number.isFinite(performance.profitFactor));
+
+  const similar = buildSimilarPatterns(candles, "BTCUSDT", "15m");
+  assert.ok(similar.length <= 4);
+  assert.ok(similar.every((item) => item.confidence >= 55 && item.confidence <= 100));
+  assert.equal(new Set(similar.map((item) => item.id)).size, similar.length);
+});
