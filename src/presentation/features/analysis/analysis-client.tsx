@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
 import type { Timeframe } from "@/core/domain/models";
-import { normalizeUsdtSymbol } from "@/core/domain/market/symbol";
+import { isValidBinanceSymbol, mergeSearchableSymbols, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
+import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
 import { fetchEnabledWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
 import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
 import { useLiveAnalysis } from "@/presentation/hooks/use-live-analysis";
@@ -17,11 +18,14 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
   const [query, setQuery] = useState(initialSymbol.replace(/USDT$/, ""));
   const { analysis, loading, error } = useLiveAnalysis(symbol, timeframe);
 
-  // Apply admin watchlist after hydration (avoids SSR/localStorage mismatch).
+  // Keep favorites first while retaining the complete market catalog.
   useEffect(() => {
     const timer = window.setTimeout(async () => {
-      const enabled = await fetchEnabledWatchlist();
-      setSymbols(enabled.length > 0 ? enabled : DEFAULT_WATCHLIST);
+      const [preferred, catalog] = await Promise.all([
+        fetchEnabledWatchlist(),
+        fetchSearchableSymbols(),
+      ]);
+      setSymbols(mergeSearchableSymbols(preferred, catalog));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -32,6 +36,7 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
 
   const pick = (value: string) => {
     const next = normalizeUsdtSymbol(value);
+    if (!isValidBinanceSymbol(next)) return;
     setQuery(next.replace(/USDT$/i, ""));
     setSymbol(next);
   };
@@ -52,7 +57,7 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
                 if (match) setSymbol(match);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && filtered.length > 0) pick(filtered[0]);
+                if (e.key === "Enter") pick(e.currentTarget.value);
               }}
               placeholder="Search symbol…"
               className="w-44 rounded-lg border border-border bg-surface-3 px-3 py-1.5 text-[12px] font-semibold text-foreground placeholder:text-muted-2 focus:border-accent/50 focus:outline-none"

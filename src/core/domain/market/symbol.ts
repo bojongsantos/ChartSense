@@ -11,3 +11,9 @@ export function isValidBinanceSymbol(value: string): boolean {
   const length = Array.from(value).length;
   return length >= 4 && length <= 20 && /^[\p{L}\p{N}]+$/u.test(value);
 }
+
+/** Keep preferred symbols first without limiting search to a user's watchlist. */
+export function mergeSearchableSymbols(preferred: string[], catalog: string[]): string[] {
+  return [...new Set([...preferred, ...catalog].map((symbol) => symbol.trim().toUpperCase()))]
+    .filter(isValidBinanceSymbol);
+}

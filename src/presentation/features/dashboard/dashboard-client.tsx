@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import { isValidBinanceSymbol, mergeSearchableSymbols, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import type { Timeframe } from "@/core/domain/models";
+import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
 import { fetchEnabledWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
 import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
 import { SupplyDemandSection } from "@/presentation/features/dashboard/supply-demand-section";
@@ -26,8 +28,11 @@ export function DashboardClient() {
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
-      const enabled = await fetchEnabledWatchlist();
-      setSymbols(enabled.length > 0 ? enabled : DEFAULT_WATCHLIST);
+      const [preferred, catalog] = await Promise.all([
+        fetchEnabledWatchlist(),
+        fetchSearchableSymbols(),
+      ]);
+      setSymbols(mergeSearchableSymbols(preferred, catalog));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -37,8 +42,10 @@ export function DashboardClient() {
   const currentTop = top.find((t) => t.hit.symbol === activeSymbol) ?? null;
 
   const pick = (value: string) => {
-    setQuery(value.replace(/USDT$/i, "").toUpperCase());
-    setSymbol(value.toUpperCase());
+    const normalized = normalizeUsdtSymbol(value);
+    if (!isValidBinanceSymbol(normalized)) return;
+    setQuery(normalized.replace(/USDT$/i, ""));
+    setSymbol(normalized);
     setShowTop(false);
   };
 
@@ -71,7 +78,7 @@ export function DashboardClient() {
                 if (match) pick(match);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && filtered.length > 0) pick(filtered[0]);
+                if (e.key === "Enter") pick(e.currentTarget.value);
               }}
               placeholder="Search symbol…"
               className="w-44 rounded-lg border border-border bg-surface-3 px-3 py-1.5 text-[12px] font-semibold text-foreground placeholder:text-muted-2 focus:border-accent/50 focus:outline-none"
