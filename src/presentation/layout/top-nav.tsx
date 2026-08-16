@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, ChevronDown, Search, LineChart, LogIn, LogOut, Settings, UserPlus } from "lucide-react";
 import { isValidBinanceSymbol, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
-import { authClient } from "@/infrastructure/auth/auth-client";
+import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
 import type { CurrentUserDto } from "@/core/domain/identity";
 
 export function TopNav() {
@@ -136,7 +136,7 @@ export function TopNav() {
                 <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-2">{currentUser.role} · {currentUser.plan}</p>
                 <Link onClick={() => setMenuOpen(false)} href="/account" className="mt-3 flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-muted hover:bg-surface-3 hover:text-foreground"><Settings className="size-4" />Pengaturan Akun</Link>
                 {currentUser.role === "ADMIN" && <Link onClick={() => setMenuOpen(false)} href="/admin" className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-muted hover:bg-surface-3 hover:text-foreground">Panel Admin</Link>}
-                <button onClick={async () => { await authClient.signOut(); setCurrentUser(null); setMenuOpen(false); router.push("/"); router.refresh(); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-negative hover:bg-negative/10"><LogOut className="size-4" />Keluar</button>
+                <button onClick={async () => { await authClient.signOut(); notifyAuthStateChanged(); setCurrentUser(null); setMenuOpen(false); router.push("/"); router.refresh(); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-negative hover:bg-negative/10"><LogOut className="size-4" />Keluar</button>
               </div>
             )}
           </div>

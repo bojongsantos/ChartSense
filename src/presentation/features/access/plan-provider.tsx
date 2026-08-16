@@ -1,8 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import type { Plan } from "@/core/domain/models";
 import { hasFeature, type FeatureKey } from "@/core/domain/access/gating";
+import { AUTH_STATE_CHANGED_EVENT } from "@/infrastructure/auth/auth-client";
 
 interface PlanContextValue {
   plan: Plan;
@@ -12,21 +14,35 @@ interface PlanContextValue {
 const PlanContext = createContext<PlanContextValue | null>(null);
 
 export function PlanProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [plan, setPlanState] = useState<Plan>("free");
   const [entitlements, setEntitlements] = useState<Partial<Record<FeatureKey, boolean>>>({});
 
-  useEffect(() => {
-    const sync = () => {
-      fetch("/api/entitlements", { cache: "no-store" })
-        .then((response) => response.ok ? response.json() : null)
-        .then((data: { plan?: Plan; access?: Partial<Record<FeatureKey, boolean>> } | null) => {
-          setPlanState(data?.plan ?? "free");
-          setEntitlements(data?.access ?? {});
-        })
-        .catch(() => setPlanState("free"));
-    };
-    sync();
+  const sync = useCallback(() => {
+    fetch("/api/entitlements", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { plan?: Plan; access?: Partial<Record<FeatureKey, boolean>> } | null) => {
+        setPlanState(data?.plan ?? "free");
+        setEntitlements(data?.access ?? {});
+      })
+      .catch(() => {
+        setPlanState("free");
+        setEntitlements({});
+      });
   }, []);
+
+  useEffect(() => {
+    sync();
+  }, [pathname, sync]);
+
+  useEffect(() => {
+    window.addEventListener(AUTH_STATE_CHANGED_EVENT, sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      window.removeEventListener(AUTH_STATE_CHANGED_EVENT, sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, [sync]);
 
   const canAccess = useCallback(
     (feature: FeatureKey) =>

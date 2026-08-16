@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Loader2 } from "lucide-react";
-import { authClient } from "@/infrastructure/auth/auth-client";
+import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -27,6 +27,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       setError(result.error.message ?? "Autentikasi gagal.");
       return;
     }
+    notifyAuthStateChanged();
     const next = params.get("next");
     router.replace(next?.startsWith("/") ? next : "/");
     router.refresh();
