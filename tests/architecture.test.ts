@@ -39,12 +39,12 @@ function assertNoForbiddenImports(
 test("source code follows Clean Architecture dependency boundaries", () => {
   assertNoForbiddenImports(
     join(sourceRoot, "core", "domain"),
-    /^(?:react|next(?:\/|$)|@\/(?:app|infrastructure|presentation)(?:\/|$))/, 
+    /^(?:react|next(?:\/|$)|@\/(?:app|infrastructure|presentation)(?:\/|$))/,
     "domain",
   );
   assertNoForbiddenImports(
     join(sourceRoot, "core", "application"),
-    /^(?:react|next(?:\/|$)|@\/(?:app|infrastructure|presentation)(?:\/|$))/, 
+    /^(?:react|next(?:\/|$)|@\/(?:app|infrastructure|presentation)(?:\/|$))/,
     "application",
   );
   assertNoForbiddenImports(
