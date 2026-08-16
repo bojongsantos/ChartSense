@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronDown, Search, LineChart, LogOut, UserRound } from "lucide-react";
+import { Bell, ChevronDown, Search, LineChart, LogIn, LogOut, Settings, UserPlus } from "lucide-react";
 import { isValidBinanceSymbol, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import { authClient } from "@/infrastructure/auth/auth-client";
 import type { CurrentUserDto } from "@/core/domain/identity";
@@ -13,6 +13,7 @@ export function TopNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
+  const [userResolved, setUserResolved] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -20,7 +21,8 @@ export function TopNav() {
     fetch("/api/me", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((data: { user?: CurrentUserDto } | null) => setCurrentUser(data?.user ?? null))
-      .catch(() => setCurrentUser(null));
+      .catch(() => setCurrentUser(null))
+      .finally(() => setUserResolved(true));
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
@@ -107,37 +109,49 @@ export function TopNav() {
           <Bell className="size-4" />
         </button>
 
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-lg border border-border bg-surface-3 py-1 pl-1 pr-2.5 transition-colors hover:border-border-strong"
-          >
-            <span className="flex size-7 items-center justify-center rounded-md bg-gradient-to-br from-accent to-accent-blue text-[11px] font-bold text-white">
-              {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : "CS"}
-            </span>
-            <span className="hidden text-left lg:block">
-              <span className="block max-w-32 truncate text-[12px] font-semibold leading-tight">{currentUser?.name ?? "Guest"}</span>
-              <span className="block text-[10px] leading-tight text-muted-2">{currentUser?.plan ?? "Belum login"}</span>
-            </span>
-            <ChevronDown className="hidden size-3.5 text-muted-2 sm:block" />
-          </button>
+        {!userResolved ? (
+          <div className="h-9 w-28 animate-pulse rounded-lg border border-border bg-surface-3" aria-label="Memuat sesi" />
+        ) : currentUser ? (
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((value) => !value)}
+              className="flex items-center gap-2 rounded-lg border border-border bg-surface-3 py-1 pl-1 pr-2.5 transition-colors hover:border-border-strong"
+              aria-expanded={menuOpen}
+              aria-label="Buka pengaturan akun"
+            >
+              <span className="flex size-7 items-center justify-center rounded-md bg-gradient-to-br from-accent to-accent-blue text-[11px] font-bold text-white">
+                {currentUser.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="hidden text-left lg:block">
+                <span className="block max-w-32 truncate text-[12px] font-semibold leading-tight">{currentUser.name}</span>
+                <span className="block text-[10px] leading-tight text-muted-2">{currentUser.plan}</span>
+              </span>
+              <ChevronDown className="hidden size-3.5 text-muted-2 sm:block" />
+            </button>
 
-          {menuOpen && (
-            <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-border bg-surface-2 p-3 shadow-xl">
-              {currentUser ? <>
+            {menuOpen && (
+              <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-border bg-surface-2 p-3 shadow-xl">
                 <p className="truncate text-[12px] font-semibold">{currentUser.email}</p>
-                <Link onClick={() => setMenuOpen(false)} href="/account" className="mt-3 flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-muted hover:bg-surface-3 hover:text-foreground"><UserRound className="size-4" />Akun & Billing</Link>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-2">{currentUser.role} · {currentUser.plan}</p>
+                <Link onClick={() => setMenuOpen(false)} href="/account" className="mt-3 flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-muted hover:bg-surface-3 hover:text-foreground"><Settings className="size-4" />Pengaturan Akun</Link>
                 {currentUser.role === "ADMIN" && <Link onClick={() => setMenuOpen(false)} href="/admin" className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-muted hover:bg-surface-3 hover:text-foreground">Panel Admin</Link>}
-                <button onClick={async () => { await authClient.signOut(); setCurrentUser(null); setMenuOpen(false); router.push("/login"); router.refresh(); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-negative hover:bg-negative/10"><LogOut className="size-4" />Keluar</button>
-              </> : <>
-                <p className="text-[11px] leading-snug text-muted">Login untuk menyimpan watchlist dan mengelola paket.</p>
-                <Link onClick={() => setMenuOpen(false)} href="/login" className="mt-3 block rounded-lg bg-accent px-3 py-2 text-center text-xs font-bold text-white">Masuk</Link>
-                <Link onClick={() => setMenuOpen(false)} href="/register" className="mt-2 block text-center text-xs font-semibold text-accent-2">Daftar akun</Link>
-              </>}
-            </div>
-          )}
-        </div>
+                <button onClick={async () => { await authClient.signOut(); setCurrentUser(null); setMenuOpen(false); router.push("/"); router.refresh(); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-negative hover:bg-negative/10"><LogOut className="size-4" />Keluar</button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface-3 px-3 text-xs font-bold text-foreground transition-colors hover:border-border-strong hover:bg-surface-2">
+              <LogIn className="size-3.5" />
+              <span className="hidden sm:inline">Masuk</span>
+            </Link>
+            <Link href="/register" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-bold text-white transition-opacity hover:opacity-90">
+              <UserPlus className="size-3.5" />
+              <span className="hidden sm:inline">Daftar</span>
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );
