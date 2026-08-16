@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Layers, Loader2, RefreshCw } from "lucide-react";
 import type { SdScanHit } from "@/core/application/scanner/supply-demand-scan-service";
@@ -193,52 +192,9 @@ function ZoneCard({
 
 export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) => void }) {
   const { result, loading, error, lastRun, refresh } = useSdScan();
-  const sectionRef = useRef<HTMLElement>(null);
-  const lastPickedRef = useRef<string | null>(null);
-
-  // Scroll-to-select: as the user scrolls, the row nearest the horizontal
-  // midline of this section becomes the active pair and auto-loads the chart
-  // below (no click needed). Only active when an onSelect handler is present.
-  useEffect(() => {
-    if (!onSelect) return;
-
-    const pickNearest = () => {
-      const root = sectionRef.current;
-      if (!root) return;
-      const rootRect = root.getBoundingClientRect();
-      if (rootRect.bottom < 0 || rootRect.top > window.innerHeight) return;
-      const midline = rootRect.top + rootRect.height / 2;
-
-      let best: string | null = null;
-      let bestDist = Infinity;
-      root.querySelectorAll<HTMLElement>("[data-zone-row]").forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.bottom < rootRect.top || r.top > rootRect.bottom) return;
-        const center = r.top + r.height / 2;
-        const dist = Math.abs(center - midline);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = el.getAttribute("data-zone-row");
-        }
-      });
-
-      if (best && best !== lastPickedRef.current) {
-        lastPickedRef.current = best;
-        onSelect(best);
-      }
-    };
-
-    const onScroll = () => requestAnimationFrame(pickNearest);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
-    return () => {
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [onSelect, result]);
 
   return (
-    <section ref={sectionRef} className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-3 sm:p-6">
+    <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-3 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-[16px] font-bold">
