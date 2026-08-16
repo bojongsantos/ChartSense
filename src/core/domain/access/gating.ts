@@ -1,5 +1,4 @@
-import type { Plan } from "./types";
-import { getGateOverride } from "./admin";
+import type { Plan } from "@/core/domain/models";
 
 export type FeatureKey =
   | "entryBreakdown"
@@ -23,8 +22,7 @@ const access: Record<Plan, Set<FeatureKey>> = {
   pro: new Set([...FREE_FEATURES, ...PRO_FEATURES]),
 };
 
-export function hasFeature(plan: Plan, feature: FeatureKey): boolean {
-  const override = getGateOverride(feature);
+export function hasFeature(plan: Plan, feature: FeatureKey, override?: boolean): boolean {
   if (override !== undefined) return override;
   return access[plan].has(feature);
 }

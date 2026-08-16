@@ -1,11 +1,6 @@
-import type { Candle, SetupDirection } from "./types";
-import { formatPrice } from "./format";
-import {
-  clearSetupSnapshot,
-  loadSetupSnapshot,
-  saveSetupSnapshot,
-  type SetupLockedSnapshot,
-} from "./setup-store";
+import type { Candle, SetupDirection, Timeframe } from "@/core/domain/models";
+import type { SetupLockedSnapshot, SetupLockPort } from "@/core/domain/analysis/setup-lock";
+import { formatPrice } from "@/shared/lib/format";
 
 export type ZoneType = "supply" | "demand";
 export type ZoneStrength = "fresh" | "tested" | "broken";
@@ -81,10 +76,14 @@ export const TERMINAL_SETUP_STATUSES: SetupStatus[] = [
  * A setup moves through a state machine:
  *   Limit Order -> Filled -> Running -> (Target 2 reached | Invalidated)
  *   Limit Order -> Missed (price ran through T1 without ever filling entry)
- * Once a setup first turns "Running" its levels are frozen in localStorage and
- * every later scan reuses those exact numbers until the setup goes terminal.
+ * When a lock adapter is provided, Running levels remain stable until terminal.
  */
-export function detectSupplyDemand(candles: Candle[], symbol?: string): SdResult {
+export function detectSupplyDemand(
+  candles: Candle[],
+  symbol?: string,
+  timeframe: Timeframe = "15m",
+  lockStore?: SetupLockPort,
+): SdResult {
   const zones: SdZone[] = [];
 
   // Average candle range used to detect an "impulse" (expansion) candle.
@@ -189,15 +188,15 @@ export function detectSupplyDemand(candles: Candle[], symbol?: string): SdResult
 
   // Locked setups (already Running) take priority: reuse the frozen numbers,
   // never recompute the zone, and only update the terminal flags.
-  if (symbol) {
-    const locked = loadSetupSnapshot(symbol);
+  if (symbol && lockStore) {
+    const locked = lockStore.load(symbol, timeframe);
     if (locked) {
       const isLong = locked.direction === "long";
       // Terminal checks use current price against the locked levels.
       if (isLong ? price <= locked.stopLoss : price >= locked.stopLoss) {
-        clearSetupSnapshot(symbol);
+        lockStore.clear(symbol, timeframe);
       } else if (isLong ? price >= locked.target2 : price <= locked.target2) {
-        clearSetupSnapshot(symbol);
+        lockStore.clear(symbol, timeframe);
       } else {
         const zone: SdZone = {
           id: `${locked.zoneType}-locked`,
@@ -261,10 +260,11 @@ export function detectSupplyDemand(candles: Candle[], symbol?: string): SdResult
     // First transition to Running freezes the levels for every future scan.
     let lockedSnapshot: SetupLockedSnapshot | null = null;
     let runningSince: number | null = null;
-    if (status === "Running" && symbol) {
+    if (status === "Running" && symbol && lockStore) {
       runningSince = Date.now();
       lockedSnapshot = {
         symbol,
+        timeframe,
         zoneType: zone.type,
         direction: isLong ? "long" : "short",
         baseTime: zone.baseTime,
@@ -280,7 +280,7 @@ export function detectSupplyDemand(candles: Candle[], symbol?: string): SdResult
         touches: zone.touches,
         runningSince,
       };
-      saveSetupSnapshot(lockedSnapshot);
+      lockStore.save(lockedSnapshot);
     }
 
     const rawRr = Math.abs(target2 - entry) / Math.max(1e-9, Math.abs(entry - stopLoss));

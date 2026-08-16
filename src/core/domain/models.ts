@@ -182,25 +182,22 @@ export interface SentimentData {
   score: number;
   label: string;
   distribution: { label: string; value: number }[];
+  available?: boolean;
 }
 
-export interface SidebarData {
-  navCounts: Record<string, number>;
-  usage: {
-    used: number;
-    limit: number;
-    resetsIn: string;
-  };
+export interface MarketTicker {
+  symbol: string;
+  lastPrice: number;
+  priceChange: number;
+  priceChangePercent: number;
+  highPrice: number;
+  lowPrice: number;
+  quoteVolume: number;
+  volume: number;
 }
 
-export interface RightRailData {
-  market: MarketContext;
+export interface MarketContextPayload {
+  context: MarketContext;
   sentiment: SentimentData;
-}
-
-export interface DummyBundle {
-  analysis: AnalysisResult;
-  scanner: ScannerOpportunity[];
-  sidebar: SidebarData;
-  rightRail: RightRailData;
+  fetchedAt: string;
 }

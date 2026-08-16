@@ -1,6 +1,6 @@
-import type { FeatureKey } from "./gating";
-import type { Plan } from "./types";
-import { DEFAULT_WATCHLIST } from "./default-watchlist";
+import type { FeatureKey } from "@/core/domain/access/gating";
+import type { Plan } from "@/core/domain/models";
+import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
 
 export interface WatchlistItem {
   symbol: string;
