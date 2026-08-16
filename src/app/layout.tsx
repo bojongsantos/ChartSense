@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { PlanProvider } from "@/components/plan/plan-provider";
+import { PlanProvider } from "@/presentation/features/access/plan-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChartSense — AI Trading Copilot",
-  description: "AI-powered crypto chart analysis, pattern detection and trade readiness scoring.",
+  title: "ChartSense — Crypto Technical Analysis",
+  description: "Rule-based crypto chart analysis, supply-demand detection, and market scanning.",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="id"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-full">

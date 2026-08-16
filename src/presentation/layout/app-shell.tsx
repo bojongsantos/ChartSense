@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
-import { TopNav } from "@/components/layout/top-nav";
-import { RightRail } from "@/components/right-rail/right-rail";
-import { useMarketContext, useSentiment } from "@/lib/live";
-import type { AnalysisResult, ScannerOpportunity } from "@/lib/types";
+import { Sidebar } from "@/presentation/layout/sidebar";
+import { TopNav } from "@/presentation/layout/top-nav";
+import { MobileNav } from "@/presentation/layout/mobile-nav";
+import { RightRail } from "@/presentation/widgets/right-rail/right-rail";
+import { useMarketContext } from "@/presentation/hooks/use-market-context";
+import type { AnalysisResult, ScannerOpportunity } from "@/core/domain/models";
 
 export function AppShell({
   children,
@@ -22,8 +23,8 @@ export function AppShell({
   hideMarketContext?: boolean;
   hideSentiment?: boolean;
 }) {
-  const { context } = useMarketContext();
-  const { sentiment } = useSentiment();
+  const showMarketData = !hideMarketContext || !hideSentiment;
+  const { context, sentiment } = useMarketContext(showMarketData);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -31,7 +32,7 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNav />
         <div className="flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+          <main className="min-w-0 flex-1 overflow-y-auto pb-16 lg:pb-0">{children}</main>
           <RightRail
             market={context}
             sentiment={sentiment}
@@ -43,6 +44,7 @@ export function AppShell({
           />
         </div>
       </div>
+      <MobileNav />
     </div>
   );
 }
