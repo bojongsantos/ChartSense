@@ -6,7 +6,6 @@ import {
   Bell,
   BookOpen,
   CreditCard,
-  Crown,
   History,
   Layers,
   LayoutDashboard,
@@ -14,7 +13,6 @@ import {
   Lock,
   MessageCircle,
   Star,
-  Zap,
 } from "lucide-react";
 import { usePlan } from "@/presentation/features/access/plan-provider";
 
@@ -32,14 +30,13 @@ const NAV_ITEMS: NavItem[] = [
   { id: "alerts", label: "Alerts", icon: Bell },
   { id: "history", label: "History", icon: History },
   { id: "notes", label: "Research Notes", icon: MessageCircle },
-  { id: "pricing", label: "Pricing", icon: CreditCard },
+  { id: "pricing", label: "Pricing", href: "/account", icon: CreditCard },
   { id: "tutorials", label: "Tutorials", icon: BookOpen },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { canAccess } = usePlan();
-  const demoControls = process.env.NEXT_PUBLIC_ENABLE_DEMO_CONTROLS === "true";
 
   const lockedItems = new Set<string>(canAccess("signals") ? [] : ["signals"]);
 
@@ -87,29 +84,12 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-4 border-t border-border px-4 py-4">
-        {demoControls ? (
-          <div className="card relative overflow-hidden p-4">
-            <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-accent/20 blur-2xl" />
-            <div className="relative flex items-center gap-2">
-              <Crown className="size-4 text-warning" />
-              <span className="text-[13px] font-semibold">Plan simulation</span>
-            </div>
-            <p className="relative mt-1.5 text-[11px] leading-snug text-muted">
-              Toggle Free dan Pro tersedia untuk pengujian fitur.
-            </p>
-            <div className="relative mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-accent-2">
-              <Zap className="size-3.5" />
-              Demo controls active
-            </div>
-          </div>
-        ) : (
           <div className="card p-4">
-            <p className="text-[12px] font-semibold">Local MVP</p>
+            <p className="text-[12px] font-semibold">ChartSense Account</p>
             <p className="mt-1 text-[11px] leading-snug text-muted">
-              Analisis teknikal rule-based tanpa akun atau billing.
+              Login untuk menyimpan watchlist dan mengaktifkan Premium.
             </p>
           </div>
-        )}
       </div>
     </aside>
   );
