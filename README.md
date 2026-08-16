@@ -1,85 +1,69 @@
 # ChartSense
 
-ChartSense adalah MVP analisis teknikal kripto berbasis aturan. Aplikasi mendeteksi zona supply/demand, menyusun level risiko, menjalankan backtest walk-forward sederhana, dan membandingkan urutan harga historis. Produk ini tidak memakai model AI/ML dan tidak mengeksekusi transaksi.
+ChartSense adalah aplikasi analisis teknikal kripto berbasis aturan. Sistem menyediakan supply/demand scanner, watchlist pengguna, paket Free/Premium, panel admin, dan pembayaran Midtrans. ChartSense tidak mengeksekusi transaksi.
 
-## Arsitektur
+## Stack
 
-Kode aplikasi berada di `src/` dan mengikuti Clean Architecture pragmatis:
+- Next.js 16 App Router dan React 19.
+- PostgreSQL 17 dan Prisma ORM 7.
+- Better Auth untuk email/password, session database, verifikasi, dan reset password.
+- Midtrans Snap untuk pembayaran Premium 30 hari.
+- Resend untuk email transaksional production.
+
+## Struktur
 
 ```text
 src/
-├── app/               # Routing dan composition root Next.js
+├── app/               # Route, page, dan composition root Next.js
 ├── config/            # Konfigurasi statis
 ├── core/
-│   ├── application/   # Use case dan ports
+│   ├── application/   # Use case dan port
 │   └── domain/        # Model dan aturan bisnis murni
-├── infrastructure/    # Adapter HTTP dan persistence
-├── presentation/      # React UI, hooks, layout, dan features
-└── shared/            # Utilitas murni lintas fitur
+├── infrastructure/    # Database, auth, billing, email, market adapter
+├── presentation/      # UI, hook, layout, dan feature
+└── shared/            # Utilitas lintas lapisan
 ```
 
-Aturan dependensi dan panduan kontribusi tersedia di
-[`docs/architecture.md`](docs/architecture.md) dan
-[`docs/development/agent-guidelines.md`](docs/development/agent-guidelines.md).
-
-`AGENTS.md` dan `CLAUDE.md` tetap di root sebagai discovery entrypoint tooling.
-Isi panduan lengkap berada di `docs/`.
-
-## Arsitektur data
-
-- Chart pasangan terpilih mengambil spot kline dan ticker Binance setiap empat detik.
-- Scanner lintas watchlist berjalan melalui route server dengan konkurensi terbatas.
-- Hasil scanner dideduplikasi dan disimpan selama 60 detik pada proses server.
-- Market context dan health check memanggil penyedia eksternal dari server.
-- Penyedia data: Binance Spot/Futures, CoinGecko, dan Alternative.me.
+Detail tersedia di [`docs/architecture.md`](docs/architecture.md) dan [`docs/backend.md`](docs/backend.md).
 
 ## Menjalankan lokal
 
-Persyaratan: Node.js 22 dan npm.
+Persyaratan: Node.js 24, npm, dan Docker Desktop.
 
 ```bash
 npm ci
+docker compose up -d postgres
+npm run db:migrate -- --name init
+npm run db:seed
 npm run dev
 ```
 
-Buka `http://localhost:3000`.
+Salin `.env.example` menjadi `.env` dan ganti seluruh secret. Database lokal tersedia pada port `54329`.
 
-Salin `.env.example` menjadi `.env.local` hanya jika fitur demo internal diperlukan. Nilai default menonaktifkan admin dan simulasi paket Pro.
+Seed development membuat:
 
-```env
-ENABLE_ADMIN_DEMO=false
-NEXT_PUBLIC_ENABLE_DEMO_CONTROLS=false
-```
+- `free@chartsense.local` — USER/FREE.
+- `premium@chartsense.local` — USER/PREMIUM.
+- `admin@chartsense.local` — ADMIN/PREMIUM.
 
-`/admin` adalah alat demo lokal, bukan panel terautentikasi. Jangan aktifkan pada deployment publik. ChartSense belum memiliki identitas pengguna, billing, database, atau entitlement produksi.
+Password hanya berasal dari `SEED_USER_PASSWORD` dan `SEED_ADMIN_PASSWORD`. Jangan menjalankan seed demo pada production.
 
 ## Route utama
 
-- `/` — dashboard dan analisis setup teratas.
-- `/analysis?symbol=BTCUSDT` — analisis pasangan tertentu.
-- `/scanner` — peluang scanner yang tersedia untuk mode Free.
-- `/patterns` — signals Pro pada mode demo.
-- `/watchlist` — konfigurasi watchlist lokal.
-- `/api/market-context`, `/api/health` — agregasi data server.
-- `/api/scanner`, `/api/signals` — scanner server tervalidasi.
+- `/login`, `/register` — autentikasi.
+- `/watchlist` — watchlist tersimpan per pengguna.
+- `/account` — profil, paket, dan checkout Premium.
+- `/admin` — backoffice khusus role ADMIN.
+- `/api/auth/*` — endpoint Better Auth.
+- `/api/watchlist/*` — CRUD watchlist dengan ownership check.
+- `/api/billing/*` — checkout, histori, dan webhook Midtrans.
+- `/api/admin/*` — user, role, plan, feature gate, audit, dan statistik.
 
 ## Verifikasi
 
 ```bash
-npm run lint
-npm run typecheck
-npm test
-npm run build
 npm run check
 npm audit
 ```
 
-CI menjalankan lint, typecheck, unit test, tes batas arsitektur, dan production build.
-
-## Batasan
-
-- Data pasar publik dapat terlambat atau tidak tersedia.
-- Backtest memakai sampel candle terbatas dan bukan jaminan hasil.
-- Status setup lokal disimpan per simbol dan timeframe pada localStorage.
-- Cache proses server tidak menggantikan Redis pada deployment multi-instance.
-- Seluruh keluaran hanya untuk riset, bukan saran finansial.
+Status setup chart tetap disimpan lokal per browser. Identitas, session, watchlist, paket, pembayaran, feature gate, dan audit log disimpan di PostgreSQL.

@@ -38,7 +38,10 @@ Aturan wajib:
 - Aturan harga, indikator, setup, dan conviction: `core/domain/analysis`.
 - Use case scanner dan validasi request: `core/application/scanner`.
 - Binance dan agregasi market context: `infrastructure/market-data`.
-- localStorage: `infrastructure/persistence`.
+- PostgreSQL/Prisma: `infrastructure/database` dan `prisma/`.
+- Auth/session: `infrastructure/auth`.
+- Payment gateway: port di `core/application/ports`, adapter di `infrastructure/billing`.
+- localStorage hanya untuk snapshot setup chart yang bersifat perangkat-lokal.
 - Hook React: `presentation/hooks`.
 - Komponen reusable tanpa business rule: `presentation/ui`.
 - Halaman dan route handler tidak boleh berisi implementasi use case.
