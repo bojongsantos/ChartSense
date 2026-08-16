@@ -1,6 +1,6 @@
 import { ShieldAlert, TrendingDown, TrendingUp } from "lucide-react";
-import type { MarketContext } from "@/lib/types";
-import { Delta } from "@/components/ui/delta";
+import type { MarketContext } from "@/core/domain/models";
+import { Delta } from "@/presentation/ui/delta";
 
 function MetricRow({
   label,
@@ -26,11 +26,9 @@ function MetricRow({
       <div className="flex min-w-0 items-center gap-1.5">
         <p className="text-[12px] font-medium text-muted">{label}</p>
         {warning && (
-          <ShieldAlert
-            className="size-3 shrink-0 text-warning"
-            aria-label="Data tidak tersedia"
-            title="Data tidak tersedia"
-          />
+          <span title="Data tidak tersedia" aria-label="Data tidak tersedia">
+            <ShieldAlert className="size-3 shrink-0 text-warning" aria-hidden="true" />
+          </span>
         )}
         {hint && !warning && <p className="text-[10px] text-muted-2">{hint}</p>}
       </div>

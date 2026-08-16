@@ -1,9 +1,9 @@
 "use client";
 
 import { FlaskConical } from "lucide-react";
-import type { SimilarPatternHit } from "@/lib/types";
-import { Badge } from "@/components/ui/badge";
-import { LockedOverlay } from "@/components/ui/locked-overlay";
+import type { SimilarPatternHit } from "@/core/domain/models";
+import { Badge } from "@/presentation/ui/badge";
+import { LockedOverlay } from "@/presentation/ui/locked-overlay";
 
 const outcomeTone = {
   win: "positive",
@@ -22,7 +22,7 @@ export function SimilarPatternsCard({ data }: { data: SimilarPatternHit[] }) {
     <section className="card flex flex-col p-4">
       <div className="flex items-center gap-1.5">
         <FlaskConical className="size-4 text-accent-2" />
-        <h3 className="text-[13px] font-semibold">Similar Setups</h3>
+        <h3 className="text-[13px] font-semibold">Similar Price Sequences</h3>
         <Badge tone="neutral" className="ml-1">
           {data.length}
         </Badge>
@@ -52,6 +52,11 @@ export function SimilarPatternsCard({ data }: { data: SimilarPatternHit[] }) {
             </li>
           ))}
         </ul>
+        {data.length === 0 && (
+          <p className="rounded-lg border border-border bg-surface-2 p-4 text-center text-xs text-muted-2">
+            Sampel historis belum mencukupi.
+          </p>
+        )}
       </LockedOverlay>
     </section>
   );

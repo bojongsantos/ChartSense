@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { CalendarDays, Plus, Share2 } from "lucide-react";
-import type { PairSummary, Timeframe } from "@/lib/types";
+import type { PairSummary, Timeframe } from "@/core/domain/models";
 
 interface AnalysisHeaderProps {
   pair: PairSummary;
@@ -11,12 +13,27 @@ interface AnalysisHeaderProps {
 }
 
 export function AnalysisHeader({ pair, timeframe, exchange, analyzedAt }: AnalysisHeaderProps) {
+  const [shareLabel, setShareLabel] = useState("Share");
   const date = new Date(analyzedAt);
   const dateLabel = date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
+
+  async function shareAnalysis() {
+    try {
+      const data = { title: `${pair.symbol} · ChartSense`, text: `${pair.symbol} ${timeframe} analysis`, url: window.location.href };
+      const nativeShare = (navigator as unknown as { share?: (value: ShareData) => Promise<void> }).share;
+      if (nativeShare) await nativeShare.call(navigator, data);
+      else await navigator.clipboard.writeText(window.location.href);
+      setShareLabel(nativeShare ? "Shared" : "Link copied");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setShareLabel("Unavailable");
+    }
+    window.setTimeout(() => setShareLabel("Share"), 2_000);
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -41,18 +58,19 @@ export function AnalysisHeader({ pair, timeframe, exchange, analyzedAt }: Analys
       <div className="ml-auto flex items-center gap-2">
         <button
           type="button"
+          onClick={shareAnalysis}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-3 px-3.5 py-2 text-[12px] font-semibold text-foreground transition-colors hover:border-border-strong"
         >
           <Share2 className="size-3.5" />
-          Share
+          {shareLabel}
         </button>
-        <button
-          type="button"
+        <Link
+          href="/analysis"
           className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-blue px-3.5 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
         >
           <Plus className="size-3.5" />
           New Analysis
-        </button>
+        </Link>
       </div>
     </div>
   );

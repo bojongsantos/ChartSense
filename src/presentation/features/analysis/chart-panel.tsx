@@ -22,9 +22,9 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Candle, ChartData, PatternSummary, Timeframe, TradeLevel } from "@/lib/types";
-import { formatPrice } from "@/lib/format";
-import { usePlan } from "@/components/plan/plan-provider";
+import type { Candle, ChartData, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
+import { formatPrice } from "@/shared/lib/format";
+import { usePlan } from "@/presentation/features/access/plan-provider";
 
 /**
  * Draws a single text label centered inside a zone box on the chart pane.
@@ -150,7 +150,8 @@ export function ChartPanel({
   pattern,
   levels,
 }: ChartPanelProps) {
-  const { isPro } = usePlan();
+  const { canAccess } = usePlan();
+  const showTradeLevels = canAccess("entryBreakdown");
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -407,9 +408,8 @@ export function ChartPanel({
       const isLong = setup.direction === "long";
       const arrowColor = isLong ? "#22c55e" : "#f43f5e";
       const entryIdx = data.candles.length - 1;
-      const toIdx = Math.min(entryIdx + 6, data.candles.length - 1);
       const fromTime = data.candles[entryIdx].time as UTCTimestamp;
-      const toTime = data.candles[toIdx].time as UTCTimestamp;
+      const toTime = (Number(fromTime) + TF_SECONDS[timeframe] * 6) as UTCTimestamp;
       if (toTime > fromTime) {
         const as = chart.addSeries(LineSeries, {
           color: arrowColor,
@@ -455,7 +455,7 @@ export function ChartPanel({
     if (!cs) return;
     for (const pl of priceLineRef.current) cs.removePriceLine(pl);
     priceLineRef.current = [];
-    if (!isPro) return;
+    if (!showTradeLevels) return;
 
     for (const level of levels) {
       const color = level.id === "sl" ? "#f43f5e" : level.id === "entry" ? "#4f7cff" : "#22c55e";
@@ -470,7 +470,7 @@ export function ChartPanel({
         }),
       );
     }
-  }, [levels, isPro]);
+  }, [levels, showTradeLevels]);
 
   return (
     <div className="card flex flex-col overflow-hidden">

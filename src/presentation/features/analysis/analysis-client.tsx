@@ -1,25 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/app-shell";
-import { AnalysisView } from "@/components/analysis/analysis-view";
-import { useLiveAnalysis } from "@/lib/live";
-import { resolveWatchlist } from "@/lib/scanner-engine";
-import { WATCHLIST } from "@/lib/scanner-engine";
-import type { Timeframe } from "@/lib/types";
+import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import type { Timeframe } from "@/core/domain/models";
+import { normalizeUsdtSymbol } from "@/core/domain/market/symbol";
+import { getEnabledWatchlist } from "@/infrastructure/persistence/admin-config-store";
+import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
+import { useLiveAnalysis } from "@/presentation/hooks/use-live-analysis";
+import { AppShell } from "@/presentation/layout/app-shell";
 import { Loader2, RefreshCw } from "lucide-react";
 
 export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
   const [symbol, setSymbol] = useState<string>(initialSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
-  const [symbols, setSymbols] = useState<string[]>(WATCHLIST);
+  const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [query, setQuery] = useState(initialSymbol.replace(/USDT$/, ""));
   const { analysis, loading, error } = useLiveAnalysis(symbol, timeframe);
 
   // Apply admin watchlist after hydration (avoids SSR/localStorage mismatch).
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSymbols(resolveWatchlist());
+    const timer = window.setTimeout(() => {
+      const enabled = getEnabledWatchlist();
+      setSymbols(enabled.length > 0 ? enabled : DEFAULT_WATCHLIST);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const filtered = query.trim()
@@ -27,13 +31,14 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
     : symbols.slice(0, 20);
 
   const pick = (value: string) => {
-    setQuery(value.replace(/USDT$/i, "").toUpperCase());
-    setSymbol(`${value.toUpperCase()}USDT`);
+    const next = normalizeUsdtSymbol(value);
+    setQuery(next.replace(/USDT$/i, ""));
+    setSymbol(next);
   };
 
   return (
     <AppShell analysis={analysis}>
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4 p-3 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <label className="text-[12px] font-semibold text-muted">Symbol</label>

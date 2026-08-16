@@ -1,13 +1,13 @@
 "use client";
 
-import type { AnalysisResult, Timeframe } from "@/lib/types";
-import { priceDecimals } from "@/lib/format";
-import { AnalysisHeader } from "@/components/analysis/analysis-header";
-import { ChartPanel } from "@/components/analysis/chart-panel";
-import { PatternCard } from "@/components/analysis/pattern-card";
-import { ReasoningCard } from "@/components/analysis/reasoning-card";
-import { PerformanceCard } from "@/components/analysis/performance-card";
-import { SimilarPatternsCard } from "@/components/analysis/similar-patterns-card";
+import type { AnalysisResult, Timeframe } from "@/core/domain/models";
+import { priceDecimals } from "@/shared/lib/format";
+import { AnalysisHeader } from "@/presentation/features/analysis/analysis-header";
+import { ChartPanel } from "@/presentation/features/analysis/chart-panel";
+import { PatternCard } from "@/presentation/features/analysis/pattern-card";
+import { ReasoningCard } from "@/presentation/features/analysis/reasoning-card";
+import { PerformanceCard } from "@/presentation/features/analysis/performance-card";
+import { SimilarPatternsCard } from "@/presentation/features/analysis/similar-patterns-card";
 
 interface AnalysisViewProps {
   data: AnalysisResult;
@@ -19,7 +19,7 @@ export function AnalysisView({ data, timeframe, onTimeframeChange }: AnalysisVie
   const precision = priceDecimals(data.pair.price);
 
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="flex flex-col gap-4 sm:gap-5">
       <AnalysisHeader
         pair={data.pair}
         timeframe={timeframe}

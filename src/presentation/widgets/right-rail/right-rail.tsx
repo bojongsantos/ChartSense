@@ -1,11 +1,11 @@
 "use client";
 
-import type { AnalysisResult, MarketContext, ScannerOpportunity, SentimentData } from "@/lib/types";
-import { ConvictionScoreCard } from "@/components/right-rail/conviction-score-card";
-import { MarketContextCard } from "@/components/right-rail/market-context-card";
-import { MarketSentimentCard } from "@/components/right-rail/market-sentiment-card";
-import { marketFallback, sentimentFallback } from "@/lib/static-rail";
-import { buildConviction, type ConvictionScore } from "@/lib/conviction";
+import type { AnalysisResult, MarketContext, ScannerOpportunity, SentimentData } from "@/core/domain/models";
+import { ConvictionScoreCard } from "@/presentation/widgets/right-rail/conviction-score-card";
+import { MarketContextCard } from "@/presentation/widgets/right-rail/market-context-card";
+import { MarketSentimentCard } from "@/presentation/widgets/right-rail/market-sentiment-card";
+import { marketFallback, sentimentFallback } from "@/config/market-fallbacks";
+import { buildConviction, type ConvictionScore } from "@/core/domain/analysis/conviction";
 
 interface RightRailProps {
   market: MarketContext | null;

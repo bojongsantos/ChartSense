@@ -1,5 +1,5 @@
-import { CheckCircle2, Sparkles } from "lucide-react";
-import type { ReasoningSection } from "@/lib/types";
+import { CheckCircle2, ChartNoAxesCombined } from "lucide-react";
+import type { ReasoningSection } from "@/core/domain/models";
 
 function renderPoint(text: string) {
   const parts = text.split(/\*\*(.+?)\*\*/g);
@@ -34,8 +34,8 @@ export function ReasoningCard({ sections }: { sections: ReasoningSection[] }) {
   return (
     <section className="card flex flex-col p-4">
       <div className="flex items-center gap-1.5">
-        <Sparkles className="size-4 text-accent-2" />
-        <h3 className="text-[13px] font-semibold">AI Analysis &amp; Reasoning</h3>
+        <ChartNoAxesCombined className="size-4 text-accent-2" />
+        <h3 className="text-[13px] font-semibold">Technical Analysis &amp; Reasoning</h3>
       </div>
 
       <div className="mt-3 flex-1 space-y-4">

@@ -1,5 +1,5 @@
-import type { SentimentData } from "@/lib/types";
-import { Gauge } from "@/components/ui/gauge";
+import type { SentimentData } from "@/core/domain/models";
+import { Gauge } from "@/presentation/ui/gauge";
 
 const zoneColors: Record<string, string> = {
   "Extreme Fear": "var(--color-negative)",
@@ -10,11 +10,22 @@ const zoneColors: Record<string, string> = {
 };
 
 export function MarketSentimentCard({ data }: { data: SentimentData }) {
+  if (data.available === false) {
+    return (
+      <section className="card p-4">
+        <h3 className="text-[13px] font-semibold">Market Sentiment</h3>
+        <p className="mt-4 rounded-lg border border-border bg-surface-2 px-3 py-5 text-center text-[11px] text-muted-2">
+          Data Fear & Greed belum tersedia.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="card p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-[13px] font-semibold">Market Sentiment</h3>
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-2">Fear & Greed</span>
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-2">Index Scale</span>
       </div>
 
       <div className="mt-2 flex justify-center">

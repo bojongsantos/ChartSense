@@ -1,4 +1,5 @@
-import { AnalysisClient } from "@/components/analysis/analysis-client";
+import { AnalysisClient } from "@/presentation/features/analysis/analysis-client";
+import { isValidBinanceSymbol, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,8 @@ export default async function AnalysisPage({
 }) {
   const params = await searchParams;
   const raw = Array.isArray(params.symbol) ? params.symbol[0] : params.symbol;
-  const symbol = raw && /^[A-Z0-9]{4,20}$/.test(raw) ? raw.toUpperCase() : "BTCUSDT";
+  const candidate = raw ? normalizeUsdtSymbol(raw) : "BTCUSDT";
+  const symbol = isValidBinanceSymbol(candidate) ? candidate : "BTCUSDT";
 
   return <AnalysisClient initialSymbol={symbol} />;
 }

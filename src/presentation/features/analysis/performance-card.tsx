@@ -1,8 +1,8 @@
 "use client";
 
-import type { PerformanceStats } from "@/lib/types";
-import { DonutChart } from "@/components/ui/donut-chart";
-import { LockedOverlay } from "@/components/ui/locked-overlay";
+import type { PerformanceStats } from "@/core/domain/models";
+import { DonutChart } from "@/presentation/ui/donut-chart";
+import { LockedOverlay } from "@/presentation/ui/locked-overlay";
 
 const colors = {
   positive: "var(--color-positive)",
@@ -19,7 +19,7 @@ export function PerformanceCard({ data }: { data: PerformanceStats }) {
 
   return (
     <section className="card flex flex-col p-4">
-      <h3 className="text-[13px] font-semibold">Historical Performance</h3>
+      <h3 className="text-[13px] font-semibold">Rule-based Backtest</h3>
 
       <LockedOverlay feature="historicalPerformance" className="mt-3 flex-1">
         <div className="flex items-center gap-4">
@@ -28,7 +28,7 @@ export function PerformanceCard({ data }: { data: PerformanceStats }) {
             size={124}
             strokeWidth={13}
             centerLabel={`${data.successRate}%`}
-            centerSub="Success"
+            centerSub={data.totalTrades ? "Target 2" : "No sample"}
           />
           <div className="flex-1 space-y-2.5">
             {data.breakdown.map((b) => (
@@ -49,7 +49,7 @@ export function PerformanceCard({ data }: { data: PerformanceStats }) {
               </span>
             </div>
             <p className="text-[10px] text-muted-2">
-              {data.totalTrades} matching setups · Profit factor {data.profitFactor.toFixed(1)}
+              {data.totalTrades} resolved setups · Profit factor {data.profitFactor.toFixed(1)}
             </p>
           </div>
         </div>

@@ -1,11 +1,11 @@
 "use client";
 
 import { Scale, TrendingDown, TrendingUp } from "lucide-react";
-import type { PatternSummary, TradeLevel } from "@/lib/types";
-import { formatPercent, formatPrice } from "@/lib/format";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { Badge } from "@/components/ui/badge";
-import { LockedOverlay } from "@/components/ui/locked-overlay";
+import type { PatternSummary, TradeLevel } from "@/core/domain/models";
+import { formatPercent, formatPrice } from "@/shared/lib/format";
+import { ProgressBar } from "@/presentation/ui/progress-bar";
+import { Badge } from "@/presentation/ui/badge";
+import { LockedOverlay } from "@/presentation/ui/locked-overlay";
 
 interface PatternCardProps {
   pattern: PatternSummary;
@@ -57,7 +57,11 @@ export function PatternCard({ pattern, levels, riskReward, price, precision }: P
           <ProgressBar value={pattern.confidence} className="mt-1.5" />
         </div>
         <Stat label="Setup Score" value={String(pattern.setupScore)} sub="/ 100" />
-        <Stat label="Probability" value={`${pattern.probability}%`} sub="of hitting T1" />
+        <Stat
+          label="Backtest Rate"
+          value={pattern.probability ? `${pattern.probability}%` : "—"}
+          sub={pattern.probability ? "resolved historical setups" : "insufficient samples"}
+        />
         <Stat label="Risk Level" value={pattern.riskLevel} />
       </div>
 

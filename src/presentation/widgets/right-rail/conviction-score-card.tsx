@@ -1,10 +1,10 @@
 "use client";
 
 import { Info } from "lucide-react";
-import type { ConvictionScore } from "@/lib/conviction";
-import { LockedOverlay } from "@/components/ui/locked-overlay";
-import { Tooltip } from "@/components/ui/tooltip";
-import { ConvictionRing } from "@/components/right-rail/conviction-ring";
+import type { ConvictionScore } from "@/core/domain/analysis/conviction";
+import { LockedOverlay } from "@/presentation/ui/locked-overlay";
+import { Tooltip } from "@/presentation/ui/tooltip";
+import { ConvictionRing } from "@/presentation/widgets/right-rail/conviction-ring";
 
 const tooltipContent: Record<string, string> = {
   quality: "Rasio kerapatan zona terhadap volatilitas pasar. Semakin sempit, semakin akurat sebagai level entry.",
