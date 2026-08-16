@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { canAccess } = usePlan();
+  const { authenticated, plan, canAccess } = usePlan();
 
   const lockedItems = new Set<string>(canAccess("signals") ? [] : ["signals"]);
 
@@ -85,9 +85,13 @@ export function Sidebar() {
 
       <div className="space-y-4 border-t border-border px-4 py-4">
           <div className="card p-4">
-            <p className="text-[12px] font-semibold">ChartSense Account</p>
+            <p className="text-[12px] font-semibold">{authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "ChartSense Account"}</p>
             <p className="mt-1 text-[11px] leading-snug text-muted">
-              Login untuk menyimpan watchlist dan mengaktifkan Premium.
+              {!authenticated
+                ? "Login untuk menyimpan watchlist dan mengaktifkan Premium."
+                : plan === "premium"
+                  ? "Premium aktif. Seluruh fitur dan scanner tersedia."
+                  : "Free aktif. Watchlist tersimpan pada akun Anda."}
             </p>
           </div>
       </div>
