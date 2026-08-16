@@ -13,7 +13,6 @@ import {
   type IChartApi,
   type IPanePrimitive,
   type IPrimitivePaneView,
-  type IPriceLine,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
   type LineWidth,
@@ -22,9 +21,8 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Candle, ChartData, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
+import type { Candle, ChartData, PatternSummary, Timeframe } from "@/core/domain/models";
 import { formatPrice } from "@/shared/lib/format";
-import { usePlan } from "@/presentation/features/access/plan-provider";
 
 /**
  * Draws a single text label centered inside a zone box on the chart pane.
@@ -120,7 +118,6 @@ interface ChartPanelProps {
   price: number;
   change24h: number;
   pattern: PatternSummary;
-  levels: TradeLevel[];
 }
 
 const TIMEFRAMES: Timeframe[] = ["15m"];
@@ -148,10 +145,7 @@ export function ChartPanel({
   price,
   change24h,
   pattern,
-  levels,
 }: ChartPanelProps) {
-  const { canAccess } = usePlan();
-  const showTradeLevels = canAccess("entryBreakdown");
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -159,7 +153,6 @@ export function ChartPanel({
   const patternSeriesRef = useRef<ISeriesApi<"Line" | "Baseline">[]>([]);
   const zoneLabelPrimitiveRef = useRef<IPanePrimitive<Time> | null>(null);
   const patternMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
-  const priceLineRef = useRef<IPriceLine[]>([]);
   const fittedKeyRef = useRef<string | null>(null);
   const pendingFitKeyRef = useRef<string | null>(null);
   const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
@@ -206,8 +199,8 @@ export function ChartPanel({
       wickUpColor: upColor,
       wickDownColor: downColor,
       borderVisible: false,
-      priceLineColor: "#4f7cff",
-      priceLineStyle: 3,
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
     candleSeriesRef.current = candles;
 
@@ -227,7 +220,6 @@ export function ChartPanel({
       candleSeriesRef.current = null;
       patternSeriesRef.current = [];
       patternMarkersRef.current = null;
-      priceLineRef.current = [];
       visibleRangeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -416,28 +408,6 @@ export function ChartPanel({
       chart.timeScale().setVisibleLogicalRange({ from, to: lastIdx + ZONE_EXTEND_BARS });
     }
   }, [data, pattern, timeframe]);
-
-  useEffect(() => {
-    const cs = candleSeriesRef.current;
-    if (!cs) return;
-    for (const pl of priceLineRef.current) cs.removePriceLine(pl);
-    priceLineRef.current = [];
-    if (!showTradeLevels) return;
-
-    for (const level of levels) {
-      const color = level.id === "sl" ? "#f43f5e" : level.id === "entry" ? "#4f7cff" : "#22c55e";
-      priceLineRef.current.push(
-        cs.createPriceLine({
-          price: level.price,
-          color,
-          lineWidth: 1,
-          lineStyle: level.id === "entry" ? LineStyle.Solid : LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: level.label,
-        }),
-      );
-    }
-  }, [levels, showTradeLevels]);
 
   return (
     <div className="card flex flex-col overflow-hidden">
