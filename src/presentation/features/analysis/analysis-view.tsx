@@ -37,6 +37,7 @@ export function AnalysisView({ data, timeframe, onTimeframeChange }: AnalysisVie
           price={data.pair.price}
           change24h={data.pair.change24h}
           pattern={data.pattern}
+          levels={data.levels}
         />
         <PatternCard
           pattern={data.pattern}
