@@ -403,39 +403,6 @@ export function ChartPanel({
       patternSeriesRef.current.push(bottomEdge);
     }
 
-    // Entry/Target direction arrow when a setup exists.
-    if (setup) {
-      const isLong = setup.direction === "long";
-      const arrowColor = isLong ? "#22c55e" : "#f43f5e";
-      const entryIdx = data.candles.length - 1;
-      const fromTime = data.candles[entryIdx].time as UTCTimestamp;
-      const toTime = (Number(fromTime) + TF_SECONDS[timeframe] * 6) as UTCTimestamp;
-      if (toTime > fromTime) {
-        const as = chart.addSeries(LineSeries, {
-          color: arrowColor,
-          lineWidth: 2 as LineWidth,
-          lineStyle: LineStyle.Solid,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        as.setData([
-          { time: fromTime, value: setup.entry },
-          { time: toTime, value: isLong ? Math.max(setup.entry, setup.target1) : Math.min(setup.entry, setup.target1) },
-        ]);
-        patternSeriesRef.current.push(as);
-
-        markers.push({
-          time: toTime,
-          position: "inBar",
-          shape: isLong ? "arrowUp" : "arrowDown",
-          color: arrowColor,
-          size: 2,
-          text: "",
-        });
-      }
-    }
-
     patternMarkersRef.current?.setMarkers(markers);
 
     // After all series (including the future-extended setup zone) are drawn,
