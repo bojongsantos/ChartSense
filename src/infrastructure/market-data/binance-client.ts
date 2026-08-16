@@ -136,6 +136,25 @@ export async function fetchTickers24h(symbols: string[]): Promise<MarketTicker[]
   return out;
 }
 
+interface BinanceExchangeSymbol {
+  symbol: string;
+  status: string;
+  quoteAsset: string;
+  isSpotTradingAllowed?: boolean;
+}
+
+export async function fetchSpotUsdtSymbols(): Promise<string[]> {
+  const exchange = await request<{ symbols: BinanceExchangeSymbol[] }>("/api/v3/exchangeInfo");
+  return exchange.symbols
+    .filter((item) =>
+      item.status === "TRADING" &&
+      item.quoteAsset === "USDT" &&
+      item.isSpotTradingAllowed !== false &&
+      /^[A-Z0-9]{4,20}$/.test(item.symbol),
+    )
+    .map((item) => item.symbol);
+}
+
 export const binanceMarketData: MarketDataPort = {
   fetchKlines,
   fetchTicker24h,
