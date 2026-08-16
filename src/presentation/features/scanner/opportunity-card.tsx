@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import type { ScannerOpportunity } from "@/lib/types";
-import { formatPrice } from "@/lib/format";
-import { Sparkline } from "@/components/ui/sparkline";
-import { Badge } from "@/components/ui/badge";
+import type { ScannerOpportunity } from "@/core/domain/models";
+import { Sparkline } from "@/presentation/ui/sparkline";
+import { Badge } from "@/presentation/ui/badge";
+import { formatPrice } from "@/shared/lib/format";
 
 interface OpportunityCardProps {
   data: ScannerOpportunity;

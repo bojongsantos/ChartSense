@@ -1,5 +1,5 @@
-import { AppShell } from "@/components/layout/app-shell";
-import { PatternsView } from "@/components/patterns/patterns-view";
+import { AppShell } from "@/presentation/layout/app-shell";
+import { PatternsView } from "@/presentation/features/signals/patterns-view";
 
 export const dynamic = "force-dynamic";
 

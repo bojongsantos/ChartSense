@@ -10,11 +10,11 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useSdScan } from "@/lib/live";
-import type { SdScanHit } from "@/lib/sd-recommendations";
-import { Badge } from "@/components/ui/badge";
-import { usePlan } from "@/components/plan/plan-provider";
-import { formatCompact } from "@/lib/format";
+import { useSdScan } from "@/presentation/hooks/use-scanner";
+import type { SdScanHit } from "@/core/application/scanner/supply-demand-scan-service";
+import { Badge } from "@/presentation/ui/badge";
+import { usePlan } from "@/presentation/features/access/plan-provider";
+import { formatCompact } from "@/shared/lib/format";
 
 const STATUS_TONES: Record<string, "warning" | "blue" | "positive" | "negative" | "neutral"> = {
   "Limit Order": "warning",
@@ -158,12 +158,13 @@ function ZoneTable({ title, hits, tone }: { title: string; hits: SdScanHit[]; to
 }
 
 export function PatternsView() {
+  const demoControls = process.env.NEXT_PUBLIC_ENABLE_DEMO_CONTROLS === "true";
   const { canAccess } = usePlan();
   const signalsEnabled = canAccess("signals");
   const { result, loading, error, lastRun, refresh } = useSdScan(signalsEnabled);
 
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="flex flex-col gap-5 p-3 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-[16px] font-bold">
@@ -195,18 +196,12 @@ export function PatternsView() {
             </span>
             <h3 className="text-[16px] font-bold">Signals terkunci</h3>
             <p className="max-w-sm text-[12px] leading-snug text-muted">
-              Upgrade ke Pro untuk melihat setup supply & demand live dari seluruh watchlist — arah entry, strength,
-              dan confidence tiap zona.
+              Signals lengkap belum tersedia pada MVP publik.
             </p>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-accent to-accent-blue px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-              >
-                <Lock className="size-3.5" />
-                Upgrade ke Pro
-              </button>
-            </div>
+            <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-2">
+              <Lock className="size-3.5" />
+              {demoControls ? "Gunakan toggle Pro pada header untuk pengujian." : "Billing dan entitlement belum diimplementasikan."}
+            </p>
           </div>
         </div>
       ) : lastRun ? (

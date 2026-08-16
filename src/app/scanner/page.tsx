@@ -1,4 +1,4 @@
-import { ScannerClient } from "@/components/scanner/scanner-client";
+import { ScannerClient } from "@/presentation/features/scanner/scanner-client";
 
 export const dynamic = "force-dynamic";
 

@@ -1,23 +1,25 @@
 "use client";
 
 import { Loader2, Radar } from "lucide-react";
-import type { ScannerOpportunity } from "@/lib/types";
-import { usePlan } from "@/components/plan/plan-provider";
-import { LockedOverlay } from "@/components/ui/locked-overlay";
-import { OpportunityCard } from "@/components/scanner/opportunity-card";
+import type { ScannerOpportunity } from "@/core/domain/models";
+import { usePlan } from "@/presentation/features/access/plan-provider";
+import { OpportunityCard } from "@/presentation/features/scanner/opportunity-card";
+import { LockedOverlay } from "@/presentation/ui/locked-overlay";
 
 const FREE_VISIBLE = 2;
 
 interface ScannerViewProps {
   data: ScannerOpportunity[];
+  total?: number;
   loading?: boolean;
   onRun?: () => void;
 }
 
-export function ScannerView({ data, loading, onRun }: ScannerViewProps) {
-  const { isPro } = usePlan();
-  const visible = isPro ? data : data.slice(0, FREE_VISIBLE);
-  const hidden = isPro ? [] : data.slice(FREE_VISIBLE);
+export function ScannerView({ data, total = data.length, loading, onRun }: ScannerViewProps) {
+  const { canAccess } = usePlan();
+  const extended = canAccess("scannerExtended");
+  const visible = extended ? data : data.slice(0, FREE_VISIBLE);
+  const hiddenCount = extended ? 0 : Math.max(0, total - visible.length);
 
   return (
     <section className="flex flex-col gap-4">
@@ -25,10 +27,10 @@ export function ScannerView({ data, loading, onRun }: ScannerViewProps) {
         <div>
           <h2 className="flex items-center gap-2 text-[16px] font-bold">
             <Radar className="size-4.5 text-accent-2" />
-            AI Scanner – Best Opportunities Today
+            Market Scanner – Best Opportunities Today
           </h2>
           <p className="mt-0.5 text-[12px] text-muted">
-            Real-time pattern scan across {data.length} pairs on Binance.
+            {total} setup aktif ditemukan pada Binance.
           </p>
         </div>
         <button
@@ -51,13 +53,13 @@ export function ScannerView({ data, loading, onRun }: ScannerViewProps) {
       <div className="-mx-6 overflow-x-auto px-6 pb-1">
         <div className="flex gap-4">
           {visible.map((opp) => (
-            <OpportunityCard key={opp.rank} data={opp} />
+            <OpportunityCard key={opp.pair.symbol} data={opp} />
           ))}
-          {!isPro && hidden.length > 0 && (
-            <LockedOverlay feature="scannerExtended" className="flex gap-4">
-              {hidden.map((opp) => (
-                <OpportunityCard key={opp.rank} data={opp} />
-              ))}
+          {!extended && hiddenCount > 0 && (
+            <LockedOverlay feature="scannerExtended" className="w-72 shrink-0">
+              <div className="flex h-44 items-center justify-center rounded-xl border border-border bg-surface-2 text-xs text-muted-2">
+                {hiddenCount} setup tambahan
+              </div>
             </LockedOverlay>
           )}
         </div>

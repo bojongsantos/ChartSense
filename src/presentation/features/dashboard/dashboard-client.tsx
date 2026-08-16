@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/layout/app-shell";
-import { AnalysisView } from "@/components/analysis/analysis-view";
-import { SupplyDemandSection } from "@/components/dashboard/supply-demand-section";
-import { useLiveAnalysis, useTopSetups } from "@/lib/live";
-import { resolveWatchlist } from "@/lib/scanner-engine";
-import { WATCHLIST } from "@/lib/scanner-engine";
-import type { Timeframe } from "@/lib/types";
+import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import type { Timeframe } from "@/core/domain/models";
+import { getEnabledWatchlist } from "@/infrastructure/persistence/admin-config-store";
+import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
+import { SupplyDemandSection } from "@/presentation/features/dashboard/supply-demand-section";
+import { useLiveAnalysis } from "@/presentation/hooks/use-live-analysis";
+import { useTopSetups } from "@/presentation/hooks/use-scanner";
+import { AppShell } from "@/presentation/layout/app-shell";
 import { ChevronDown, Loader2, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 
 export function DashboardClient() {
@@ -15,7 +16,7 @@ export function DashboardClient() {
   const [symbol, setSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
   const [showTop, setShowTop] = useState(false);
-  const [symbols, setSymbols] = useState<string[]>(WATCHLIST);
+  const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [query, setQuery] = useState("");
 
   // On a fresh mount, no session choice yet → auto-load today's #1 top setup.
@@ -24,8 +25,11 @@ export function DashboardClient() {
   const activeSymbol = symbol ?? top[0]?.hit.symbol ?? null;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSymbols(resolveWatchlist());
+    const timer = window.setTimeout(() => {
+      const enabled = getEnabledWatchlist();
+      setSymbols(enabled.length > 0 ? enabled : DEFAULT_WATCHLIST);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const { analysis, loading, error } = useLiveAnalysis(activeSymbol ?? "BTCUSDT", timeframe);
@@ -50,7 +54,7 @@ export function DashboardClient() {
 
   return (
     <AppShell analysis={analysis}>
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4 p-3 sm:p-6">
         {/* Supply & Demand Zones — new top section */}
         <SupplyDemandSection onSelect={selectFromSection} />
 

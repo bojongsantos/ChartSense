@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Layers, Loader2, RefreshCw } from "lucide-react";
-import { useSdScan } from "@/lib/live";
-import type { SdScanHit } from "@/lib/sd-recommendations";
-import { usePlan } from "@/components/plan/plan-provider";
-import { LockedOverlay } from "@/components/ui/locked-overlay";
-import { Badge } from "@/components/ui/badge";
-import { formatCompact } from "@/lib/format";
+import type { SdScanHit } from "@/core/application/scanner/supply-demand-scan-service";
+import { usePlan } from "@/presentation/features/access/plan-provider";
+import { useSdScan } from "@/presentation/hooks/use-scanner";
+import { Badge } from "@/presentation/ui/badge";
+import { LockedOverlay } from "@/presentation/ui/locked-overlay";
+import { formatCompact } from "@/shared/lib/format";
 
 const FREE_VISIBLE = 3;
 const SCROLL_MAX_HEIGHT = 400; // ~6 rows visible at once
@@ -103,29 +104,33 @@ function ZoneRow({
 function ZoneCard({
   title,
   hits,
+  totalCount,
   tone,
   onSelect,
 }: {
   title: string;
   hits: SdScanHit[];
+  totalCount?: number;
   tone: "green" | "red";
   onSelect?: (symbol: string) => void;
 }) {
-  const { isPro } = usePlan();
+  const router = useRouter();
+  const { canAccess } = usePlan();
+  const extended = canAccess("scannerExtended");
   const color = tone === "green" ? "var(--color-positive)" : "var(--color-negative)";
   // Defensive: never mix directions — Buy table only shows long, Sell only short.
   const filtered = hits.filter((h) => (tone === "green" ? h.direction === "long" : h.direction === "short"));
-  const total = filtered.length;
+  const total = totalCount ?? filtered.length;
   const hasMore = total > FREE_VISIBLE;
   // Pro sees every setup in the scroll area; Free sees the first FREE_VISIBLE
   // and the rest blur inside the same scroll area.
-  const visible = isPro ? filtered : filtered.slice(0, FREE_VISIBLE);
-  const hidden = isPro ? [] : filtered.slice(FREE_VISIBLE);
+  const visible = extended ? filtered : filtered.slice(0, FREE_VISIBLE);
+  const hiddenCount = extended ? 0 : Math.max(0, total - visible.length);
   const scrollActive = total > FREE_VISIBLE;
   const maxVol = Math.max(1, ...filtered.map((h) => h.volume24h));
 
   return (
-    <section className="card flex flex-col p-6" style={{ borderRadius: 12 }}>
+    <section className="card flex flex-col p-4 sm:p-6" style={{ borderRadius: 12 }}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[14px] font-bold tracking-tight" style={{ color }}>
           {title}
@@ -160,15 +165,11 @@ function ZoneCard({
           </tbody>
         </table>
 
-        {hidden.length > 0 && (
+        {hiddenCount > 0 && (
           <LockedOverlay feature="scannerExtended" className="border-t border-border">
-            <table className="w-full border-collapse text-left">
-              <tbody>
-                {hidden.map((hit) => (
-                  <ZoneRow key={hit.symbol} hit={hit} color={color} maxVol={maxVol} onSelect={onSelect} />
-                ))}
-              </tbody>
-            </table>
+            <div className="flex h-24 items-center justify-center text-xs text-muted-2">
+              {hiddenCount} setup tambahan
+            </div>
           </LockedOverlay>
         )}
 
@@ -180,7 +181,7 @@ function ZoneCard({
       {hasMore && (
         <button
           type="button"
-          onClick={() => window.location.assign("/patterns")}
+          onClick={() => router.push("/patterns")}
           className="mt-3 inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-surface-3 px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-foreground"
         >
           Lihat semua ({total})
@@ -205,12 +206,14 @@ export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) 
       const root = sectionRef.current;
       if (!root) return;
       const rootRect = root.getBoundingClientRect();
+      if (rootRect.bottom < 0 || rootRect.top > window.innerHeight) return;
       const midline = rootRect.top + rootRect.height / 2;
 
       let best: string | null = null;
       let bestDist = Infinity;
       root.querySelectorAll<HTMLElement>("[data-zone-row]").forEach((el) => {
         const r = el.getBoundingClientRect();
+        if (r.bottom < rootRect.top || r.top > rootRect.bottom) return;
         const center = r.top + r.height / 2;
         const dist = Math.abs(center - midline);
         if (dist < bestDist) {
@@ -228,17 +231,14 @@ export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) 
     const onScroll = () => requestAnimationFrame(pickNearest);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
-    // Initial pick after layout settles.
-    const t = window.setTimeout(pickNearest, 200);
     return () => {
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onScroll);
-      window.clearTimeout(t);
     };
   }, [onSelect, result]);
 
   return (
-    <section ref={sectionRef} className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-6">
+    <section ref={sectionRef} className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-3 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-[16px] font-bold">
@@ -277,8 +277,20 @@ export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) 
 
       {result && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <ZoneCard title="Demand Zones (Buy)" hits={result.demand} tone="green" onSelect={onSelect} />
-          <ZoneCard title="Supply Zones (Sell)" hits={result.supply} tone="red" onSelect={onSelect} />
+          <ZoneCard
+            title="Demand Zones (Buy)"
+            hits={result.demand}
+            totalCount={result.demandTotal}
+            tone="green"
+            onSelect={onSelect}
+          />
+          <ZoneCard
+            title="Supply Zones (Sell)"
+            hits={result.supply}
+            totalCount={result.supplyTotal}
+            tone="red"
+            onSelect={onSelect}
+          />
         </div>
       )}
     </section>
