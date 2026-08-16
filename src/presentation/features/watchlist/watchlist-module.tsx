@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Eye, Loader2, LockKeyhole, Plus, Trash2 } from "lucide-react";
+import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
 import { Badge } from "@/presentation/ui/badge";
 
 interface WatchlistItem { id: string; symbol: string; enabled: boolean; position: number }
@@ -17,7 +18,16 @@ export function WatchlistModule() {
   const load = useCallback(async () => {
     const response = await fetch("/api/watchlist", { cache: "no-store" });
     setLoading(false);
-    if (response.status === 401) { setUnauthorized(true); return; }
+    if (response.status === 401) {
+      setUnauthorized(true);
+      setItems(DEFAULT_WATCHLIST.slice(0, 10).map((symbol, position) => ({
+        id: `preview-${symbol}`,
+        symbol,
+        enabled: true,
+        position,
+      })));
+      return;
+    }
     const payload = await response.json() as { items?: WatchlistItem[]; error?: { message?: string } };
     if (!response.ok) { setError(payload.error?.message ?? "Watchlist gagal dimuat."); return; }
     setItems(payload.items ?? []);
@@ -45,12 +55,18 @@ export function WatchlistModule() {
   }
 
   if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="size-5 animate-spin text-muted" /></div>;
-  if (unauthorized) return <div className="m-6 card p-8 text-center"><h2 className="text-lg font-bold">Login diperlukan</h2><p className="mt-2 text-sm text-muted">Watchlist kini tersimpan aman pada akun.</p><Link href="/login?next=/watchlist" className="mt-5 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white">Masuk</Link></div>;
 
   return <div className="flex flex-col gap-5 p-6">
-    <div><h2 className="text-lg font-bold">Watchlist Saya</h2><p className="mt-1 text-xs text-muted">{items.filter((item) => item.enabled).length} aktif dari {items.length} simbol.</p></div>
-    <div className="flex gap-2"><input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} placeholder="BTCUSDT" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" /><button onClick={() => void add()} disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><Plus className="size-4" />Tambah</button></div>
+    <div><h2 className="text-lg font-bold">{unauthorized ? "Watchlist Pasar" : "Watchlist Saya"}</h2><p className="mt-1 text-xs text-muted">{unauthorized ? "Pratinjau publik. Login untuk membuat watchlist pribadi." : `${items.filter((item) => item.enabled).length} aktif dari ${items.length} simbol.`}</p></div>
+    {unauthorized ? (
+      <div className="flex flex-col gap-3 rounded-xl border border-accent/25 bg-accent/10 p-4 sm:flex-row sm:items-center">
+        <div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Eye className="size-4" /></span><div><p className="text-sm font-bold">Mode view-only</p><p className="mt-1 text-xs text-muted">Analisis tetap dapat dilihat. Penyimpanan dan perubahan watchlist memerlukan akun.</p></div></div>
+        <div className="flex gap-2 sm:ml-auto"><Link href="/login?next=/watchlist" className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-bold">Masuk</Link><Link href="/register" className="rounded-lg bg-accent px-3 py-2 text-xs font-bold text-white">Daftar</Link></div>
+      </div>
+    ) : (
+      <div className="flex gap-2"><input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} placeholder="BTCUSDT" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" /><button onClick={() => void add()} disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><Plus className="size-4" />Tambah</button></div>
+    )}
     {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
-    <div className="card divide-y divide-border/60 overflow-hidden">{items.length === 0 && <div className="p-8 text-center text-sm text-muted">Watchlist masih kosong.</div>}{items.map((item, index) => <div key={item.id} className="flex items-center gap-3 px-4 py-3"><span className="w-8 text-xs text-muted-2">#{index + 1}</span><span className="font-bold">{item.symbol}</span><span className="flex-1" /><Badge tone={item.enabled ? "positive" : "neutral"}>{item.enabled ? "Aktif" : "Nonaktif"}</Badge><button onClick={() => void toggle(item)} className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold">{item.enabled ? "Nonaktifkan" : "Aktifkan"}</button><button onClick={() => void remove(item.id)} aria-label={`Hapus ${item.symbol}`} className="p-1.5 text-muted hover:text-negative"><Trash2 className="size-4" /></button></div>)}</div>
+    <div className="card divide-y divide-border/60 overflow-hidden">{items.length === 0 && <div className="p-8 text-center text-sm text-muted">Watchlist masih kosong.</div>}{items.map((item, index) => <div key={item.id} className="flex items-center gap-3 px-4 py-3"><span className="w-8 text-xs text-muted-2">#{index + 1}</span><Link href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`} className="font-bold hover:text-accent-2">{item.symbol}</Link><span className="flex-1" />{unauthorized ? <><Badge tone="neutral">Preview</Badge><LockKeyhole className="size-4 text-muted-2" aria-label="View-only" /></> : <><Badge tone={item.enabled ? "positive" : "neutral"}>{item.enabled ? "Aktif" : "Nonaktif"}</Badge><button onClick={() => void toggle(item)} className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold">{item.enabled ? "Nonaktifkan" : "Aktifkan"}</button><button onClick={() => void remove(item.id)} aria-label={`Hapus ${item.symbol}`} className="p-1.5 text-muted hover:text-negative"><Trash2 className="size-4" /></button></>}</div>)}</div>
   </div>;
 }
