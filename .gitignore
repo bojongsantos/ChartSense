@@ -54,6 +54,8 @@ sol_zigzag.png
 conviction-*.png
 dashboard-*.png
 signals-*.png
+chart-*.png
+analysis-current.png
 
 # prototype / scratch scripts
 pattern_detector_prototype.py
