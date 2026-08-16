@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DEFAULT_ADMIN_CONFIG, loadAdminConfig, saveAdminConfig } from "@/lib/admin";
-import { PRO_FEATURES, featureLabel } from "@/lib/gating";
-import { Badge } from "@/components/ui/badge";
+import { DEFAULT_ADMIN_CONFIG, loadAdminConfig, saveAdminConfig } from "@/infrastructure/persistence/admin-config-store";
+import { PRO_FEATURES, featureLabel } from "@/core/domain/access/gating";
+import { Badge } from "@/presentation/ui/badge";
 
 const PLAN_OPTIONS = [
   { value: "free", label: "Free", desc: "Semua fitur pro terkunci sesuai default" },

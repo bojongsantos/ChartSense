@@ -1,9 +1,9 @@
 "use client";
 
-import { useScanner } from "@/lib/live";
-import { Badge } from "@/components/ui/badge";
+import { useScanner } from "@/presentation/hooks/use-scanner";
+import { Badge } from "@/presentation/ui/badge";
 import { Loader2, RefreshCw } from "lucide-react";
-import { formatPrice } from "@/lib/format";
+import { formatPrice } from "@/shared/lib/format";
 
 export function ScannerModule() {
   const { opportunities, loading, error, lastRun, refresh } = useScanner();

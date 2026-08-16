@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { DEFAULT_ADMIN_CONFIG, loadAdminConfig, saveAdminConfig, type WatchlistItem } from "@/lib/admin";
-import { Badge } from "@/components/ui/badge";
+import { DEFAULT_ADMIN_CONFIG, loadAdminConfig, saveAdminConfig, type WatchlistItem } from "@/infrastructure/persistence/admin-config-store";
+import { Badge } from "@/presentation/ui/badge";
 
 export function WatchlistModule() {
   const [config, setConfig] = useState(DEFAULT_ADMIN_CONFIG);
@@ -43,7 +43,11 @@ export function WatchlistModule() {
   };
 
   const reset = () => {
-    const cfg = { ...loadAdminConfig() };
+    const cfg = {
+      ...DEFAULT_ADMIN_CONFIG,
+      watchlist: DEFAULT_ADMIN_CONFIG.watchlist.map((item) => ({ ...item })),
+      gateOverrides: {},
+    };
     setConfig(cfg);
     saveAdminConfig(cfg);
   };

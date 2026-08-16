@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useScanner } from "@/lib/live";
-import { DEFAULT_ADMIN_CONFIG, getEnabledWatchlist, loadAdminConfig } from "@/lib/admin";
-import { PRO_FEATURES, featureLabel } from "@/lib/gating";
-import { Badge } from "@/components/ui/badge";
+import { useScanner } from "@/presentation/hooks/use-scanner";
+import { DEFAULT_ADMIN_CONFIG, getEnabledWatchlist, loadAdminConfig } from "@/infrastructure/persistence/admin-config-store";
+import { PRO_FEATURES, featureLabel } from "@/core/domain/access/gating";
+import { Badge } from "@/presentation/ui/badge";
 import { Loader2 } from "lucide-react";
 
 export function Overview() {
   const router = useRouter();
-  const { opportunities, loading, error } = useScanner();
+  const { opportunities, total, loading } = useScanner();
   const [cfg, setCfg] = useState(DEFAULT_ADMIN_CONFIG);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function Overview() {
           className="card flex flex-col gap-1 p-4 text-left transition-colors hover:border-border-strong"
         >
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-2">Scanner</span>
-          <span className="text-2xl font-bold">{opportunities.length}</span>
+          <span className="text-2xl font-bold">{total}</span>
           <span className="text-[11px] text-muted">{loading ? "scanning…" : "setup terdeteksi"}</span>
         </button>
 
@@ -70,8 +70,8 @@ export function Overview() {
           className="card flex flex-col gap-1 p-4 text-left transition-colors hover:border-border-strong"
         >
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-2">API Health</span>
-          <span className="text-2xl font-bold">{error ? "0/2" : "2/2"}</span>
-          <span className="text-[11px] text-muted">Binance · Fear & Greed</span>
+          <span className="text-2xl font-bold">4</span>
+          <span className="text-[11px] text-muted">layanan diperiksa terpisah</span>
         </button>
       </div>
 
