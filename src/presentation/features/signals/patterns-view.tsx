@@ -158,7 +158,6 @@ function ZoneTable({ title, hits, tone }: { title: string; hits: SdScanHit[]; to
 }
 
 export function PatternsView() {
-  const demoControls = process.env.NEXT_PUBLIC_ENABLE_DEMO_CONTROLS === "true";
   const { canAccess } = usePlan();
   const signalsEnabled = canAccess("signals");
   const { result, loading, error, lastRun, refresh } = useSdScan(signalsEnabled);
@@ -192,15 +191,15 @@ export function PatternsView() {
           <div className="relative flex flex-col items-center gap-3 text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-accent-2">
               <Sparkles className="size-3" />
-              Pro feature
+              Premium
             </span>
             <h3 className="text-[16px] font-bold">Signals terkunci</h3>
             <p className="max-w-sm text-[12px] leading-snug text-muted">
-              Signals lengkap belum tersedia pada MVP publik.
+              Signals lengkap tersedia pada paket Premium.
             </p>
             <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-2">
               <Lock className="size-3.5" />
-              {demoControls ? "Gunakan toggle Pro pada header untuk pengujian." : "Billing dan entitlement belum diimplementasikan."}
+              Upgrade melalui halaman Akun & Billing.
             </p>
           </div>
         </div>

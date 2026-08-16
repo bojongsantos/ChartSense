@@ -7,7 +7,7 @@ import type {
   TopSetup,
 } from "@/core/application/scanner/supply-demand-scan-service";
 import type { ScannerOpportunity } from "@/core/domain/models";
-import { getEnabledWatchlist } from "@/infrastructure/persistence/admin-config-store";
+import { fetchEnabledWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
 
 interface SignalsApiPayload {
   result: SdScanResult;
@@ -15,10 +15,11 @@ interface SignalsApiPayload {
 }
 
 async function postScan<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const symbols = await fetchEnabledWatchlist();
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, symbols: getEnabledWatchlist() }),
+    body: JSON.stringify({ ...body, symbols }),
   });
   const payload = (await response.json()) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? `Request failed (${response.status})`);

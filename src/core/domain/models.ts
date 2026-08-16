@@ -1,4 +1,4 @@
-export type Plan = "free" | "pro";
+export type Plan = "free" | "premium";
 
 export type Trend = "bullish" | "bearish" | "neutral";
 

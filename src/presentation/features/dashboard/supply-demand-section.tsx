@@ -122,7 +122,7 @@ function ZoneCard({
   const filtered = hits.filter((h) => (tone === "green" ? h.direction === "long" : h.direction === "short"));
   const total = totalCount ?? filtered.length;
   const hasMore = total > FREE_VISIBLE;
-  // Pro sees every setup in the scroll area; Free sees the first FREE_VISIBLE
+  // Premium sees every setup; Free sees the first FREE_VISIBLE.
   // and the rest blur inside the same scroll area.
   const visible = extended ? filtered : filtered.slice(0, FREE_VISIBLE);
   const hiddenCount = extended ? 0 : Math.max(0, total - visible.length);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
 import type { Timeframe } from "@/core/domain/models";
-import { getEnabledWatchlist } from "@/infrastructure/persistence/admin-config-store";
+import { fetchEnabledWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
 import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
 import { SupplyDemandSection } from "@/presentation/features/dashboard/supply-demand-section";
 import { useLiveAnalysis } from "@/presentation/hooks/use-live-analysis";
@@ -25,8 +25,8 @@ export function DashboardClient() {
   const activeSymbol = symbol ?? top[0]?.hit.symbol ?? null;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const enabled = getEnabledWatchlist();
+    const timer = window.setTimeout(async () => {
+      const enabled = await fetchEnabledWatchlist();
       setSymbols(enabled.length > 0 ? enabled : DEFAULT_WATCHLIST);
     }, 0);
     return () => window.clearTimeout(timer);

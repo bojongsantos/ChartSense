@@ -1,130 +1,56 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
-import { DEFAULT_ADMIN_CONFIG, loadAdminConfig, saveAdminConfig, type WatchlistItem } from "@/infrastructure/persistence/admin-config-store";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/presentation/ui/badge";
 
-export function WatchlistModule() {
-  const [config, setConfig] = useState(DEFAULT_ADMIN_CONFIG);
-  const [draft, setDraft] = useState("");
+interface WatchlistItem { id: string; symbol: string; enabled: boolean; position: number }
 
-  // Re-sync from localStorage after hydration to avoid SSR mismatch.
-  useEffect(() => {
-    const sync = () => setConfig(loadAdminConfig());
-    sync();
-    window.addEventListener("chartsense:admin-change", sync);
-    return () => window.removeEventListener("chartsense:admin-change", sync);
+export function WatchlistModule() {
+  const [items, setItems] = useState<WatchlistItem[]>([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const response = await fetch("/api/watchlist", { cache: "no-store" });
+    setLoading(false);
+    if (response.status === 401) { setUnauthorized(true); return; }
+    const payload = await response.json() as { items?: WatchlistItem[]; error?: { message?: string } };
+    if (!response.ok) { setError(payload.error?.message ?? "Watchlist gagal dimuat."); return; }
+    setItems(payload.items ?? []);
   }, []);
 
-  const commit = (next: WatchlistItem[]) => {
-    const cfg = { ...config, watchlist: next };
-    setConfig(cfg);
-    saveAdminConfig(cfg);
-  };
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
 
-  const toggle = (symbol: string) => {
-    commit(config.watchlist.map((w) => (w.symbol === symbol ? { ...w, enabled: !w.enabled } : w)));
-  };
-
-  const remove = (symbol: string) => {
-    commit(config.watchlist.filter((w) => w.symbol !== symbol));
-  };
-
-  const add = () => {
+  async function add() {
     const symbol = draft.trim().toUpperCase();
     if (!/^[A-Z0-9]{4,20}$/.test(symbol)) return;
-    if (config.watchlist.some((w) => w.symbol === symbol)) {
-      setDraft("");
-      return;
-    }
-    commit([...config.watchlist, { symbol, enabled: true }]);
-    setDraft("");
-  };
+    const response = await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol }) });
+    const payload = await response.json() as { item?: WatchlistItem; error?: { message?: string } };
+    if (!response.ok || !payload.item) { setError(payload.error?.message ?? "Simbol gagal ditambahkan."); return; }
+    setItems((current) => [...current, payload.item!]); setDraft(""); setError(null);
+  }
 
-  const reset = () => {
-    const cfg = {
-      ...DEFAULT_ADMIN_CONFIG,
-      watchlist: DEFAULT_ADMIN_CONFIG.watchlist.map((item) => ({ ...item })),
-      gateOverrides: {},
-    };
-    setConfig(cfg);
-    saveAdminConfig(cfg);
-  };
+  async function toggle(item: WatchlistItem) {
+    const response = await fetch(`/api/watchlist/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: !item.enabled }) });
+    if (response.ok) setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, enabled: !entry.enabled } : entry));
+  }
 
-  const enabled = config.watchlist.filter((w) => w.enabled).length;
+  async function remove(id: string) {
+    const response = await fetch(`/api/watchlist/${id}`, { method: "DELETE" });
+    if (response.ok) setItems((current) => current.filter((entry) => entry.id !== id));
+  }
 
-  return (
-    <div className="flex flex-col gap-5 p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold tracking-tight">Watchlist</h2>
-          <p className="mt-0.5 text-[12px] text-muted">
-            Daftar symbol yang discan di Scanner & halaman Analysis. {enabled} aktif dari {config.watchlist.length}.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-lg border border-border bg-surface-3 px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-foreground"
-        >
-          Reset ke default
-        </button>
-      </div>
+  if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="size-5 animate-spin text-muted" /></div>;
+  if (unauthorized) return <div className="m-6 card p-8 text-center"><h2 className="text-lg font-bold">Login diperlukan</h2><p className="mt-2 text-sm text-muted">Watchlist kini tersimpan aman pada akun.</p><Link href="/login?next=/watchlist" className="mt-5 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white">Masuk</Link></div>;
 
-      <div className="flex items-center gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          placeholder="Tambahkan symbol, mis. PEPEUSDT"
-          className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-[12px] text-foreground placeholder:text-muted-2 focus:border-accent/50 focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={add}
-          disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-blue px-3.5 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          <Plus className="size-3.5" />
-          Tambah
-        </button>
-      </div>
-
-      <div className="card divide-y divide-border/60 overflow-hidden">
-        {config.watchlist.length === 0 && (
-          <div className="px-4 py-8 text-center text-[12px] text-muted-2">
-            Watchlist kosong. Tambahkan symbol untuk mulai scanning.
-          </div>
-        )}
-        {config.watchlist.map((w) => (
-          <div key={w.symbol} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="w-10 text-[11px] font-semibold tabular-nums text-muted-2">
-              #{config.watchlist.indexOf(w) + 1}
-            </span>
-            <span className="text-[13px] font-bold">{w.symbol}</span>
-            <span className="flex-1" />
-            <Badge tone={w.enabled ? "positive" : "neutral"}>
-              {w.enabled ? "Aktif" : "Nonaktif"}
-            </Badge>
-            <button
-              type="button"
-              onClick={() => toggle(w.symbol)}
-              className="rounded-md border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted transition-colors hover:text-foreground"
-            >
-              {w.enabled ? "Nonaktifkan" : "Aktifkan"}
-            </button>
-            <button
-              type="button"
-              onClick={() => remove(w.symbol)}
-              className="flex size-7 items-center justify-center rounded-md border border-border bg-surface-2 text-muted-2 transition-colors hover:border-negative/40 hover:text-negative"
-              aria-label={`Hapus ${w.symbol}`}
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <div className="flex flex-col gap-5 p-6">
+    <div><h2 className="text-lg font-bold">Watchlist Saya</h2><p className="mt-1 text-xs text-muted">{items.filter((item) => item.enabled).length} aktif dari {items.length} simbol.</p></div>
+    <div className="flex gap-2"><input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} placeholder="BTCUSDT" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" /><button onClick={() => void add()} disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><Plus className="size-4" />Tambah</button></div>
+    {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
+    <div className="card divide-y divide-border/60 overflow-hidden">{items.length === 0 && <div className="p-8 text-center text-sm text-muted">Watchlist masih kosong.</div>}{items.map((item, index) => <div key={item.id} className="flex items-center gap-3 px-4 py-3"><span className="w-8 text-xs text-muted-2">#{index + 1}</span><span className="font-bold">{item.symbol}</span><span className="flex-1" /><Badge tone={item.enabled ? "positive" : "neutral"}>{item.enabled ? "Aktif" : "Nonaktif"}</Badge><button onClick={() => void toggle(item)} className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold">{item.enabled ? "Nonaktifkan" : "Aktifkan"}</button><button onClick={() => void remove(item.id)} aria-label={`Hapus ${item.symbol}`} className="p-1.5 text-muted hover:text-negative"><Trash2 className="size-4" /></button></div>)}</div>
+  </div>;
 }

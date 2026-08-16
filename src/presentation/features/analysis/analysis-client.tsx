@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
 import type { Timeframe } from "@/core/domain/models";
 import { normalizeUsdtSymbol } from "@/core/domain/market/symbol";
-import { getEnabledWatchlist } from "@/infrastructure/persistence/admin-config-store";
+import { fetchEnabledWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
 import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
 import { useLiveAnalysis } from "@/presentation/hooks/use-live-analysis";
 import { AppShell } from "@/presentation/layout/app-shell";
@@ -19,8 +19,8 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
 
   // Apply admin watchlist after hydration (avoids SSR/localStorage mismatch).
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const enabled = getEnabledWatchlist();
+    const timer = window.setTimeout(async () => {
+      const enabled = await fetchEnabledWatchlist();
       setSymbols(enabled.length > 0 ? enabled : DEFAULT_WATCHLIST);
     }, 0);
     return () => window.clearTimeout(timer);
