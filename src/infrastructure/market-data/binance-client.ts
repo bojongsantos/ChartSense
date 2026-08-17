@@ -77,13 +77,17 @@ export async function fetchKlines(
   timeframe: Timeframe,
   limit: number = KLINE_LIMIT_BY_TIMEFRAME[timeframe],
   signal?: AbortSignal,
+  endTime?: number,
 ): Promise<Candle[]> {
   const interval = INTERVAL_BY_TIMEFRAME[timeframe];
+  const cursor = endTime === undefined ? "" : `&endTime=${Math.floor(endTime)}`;
   const raw = await request<[number, string, string, string, string, string][]>(
-    `/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`,
+    `/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}${cursor}`,
     signal,
   );
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error(`No candle data for ${symbol}`);
+  if (!Array.isArray(raw) || (raw.length === 0 && endTime === undefined)) {
+    throw new Error(`No candle data for ${symbol}`);
+  }
   return raw.map((k) => ({
     time: Math.floor(k[0] / 1000),
     open: finiteNumber(k[1], "open"),

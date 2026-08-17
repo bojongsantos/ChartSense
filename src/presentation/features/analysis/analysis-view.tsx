@@ -13,9 +13,19 @@ interface AnalysisViewProps {
   data: AnalysisResult;
   timeframe: Timeframe;
   onTimeframeChange: (tf: Timeframe) => void;
+  historyLoading: boolean;
+  hasMoreHistory: boolean;
+  onLoadMoreHistory: () => Promise<void>;
 }
 
-export function AnalysisView({ data, timeframe, onTimeframeChange }: AnalysisViewProps) {
+export function AnalysisView({
+  data,
+  timeframe,
+  onTimeframeChange,
+  historyLoading,
+  hasMoreHistory,
+  onLoadMoreHistory,
+}: AnalysisViewProps) {
   const precision = priceDecimals(data.pair.price);
 
   return (
@@ -38,6 +48,9 @@ export function AnalysisView({ data, timeframe, onTimeframeChange }: AnalysisVie
           change24h={data.pair.change24h}
           pattern={data.pattern}
           levels={data.levels}
+          historyLoading={historyLoading}
+          hasMoreHistory={hasMoreHistory}
+          onLoadMoreHistory={onLoadMoreHistory}
         />
         <PatternCard
           pattern={data.pattern}
