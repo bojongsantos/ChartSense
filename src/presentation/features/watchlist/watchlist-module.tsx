@@ -140,7 +140,6 @@ export function WatchlistModule() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [plan, setPlan] = useState<"FREE" | "PREMIUM" | null>(null);
   const [limit, setLimit] = useState(20);
@@ -196,9 +195,9 @@ export function WatchlistModule() {
     return () => controller.abort();
   }, [symbolKey]);
 
-  async function add() {
-    if (!draft.trim()) return;
-    const symbol = normalizeUsdtSymbol(draft);
+  async function add(value = draft) {
+    if (!value.trim()) return;
+    const symbol = normalizeUsdtSymbol(value);
     if (!catalog.includes(symbol) || items.some((item) => item.symbol === symbol)) return;
     const response = await fetch("/api/watchlist", {
       method: "POST",
@@ -212,7 +211,6 @@ export function WatchlistModule() {
     }
     setItems((current) => [...current, payload.item!]);
     setDraft("");
-    setShowAdd(false);
     setError(null);
   }
 
@@ -235,7 +233,9 @@ export function WatchlistModule() {
   if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="size-5 animate-spin text-muted" /></div>;
 
   const itemSymbols = new Set(items.map((item) => item.symbol));
-  const searchResults = filterSearchableSymbols(catalog, draft, itemSymbols);
+  const searchResults = filterSearchableSymbols(catalog, draft);
+  const visibleSymbols = new Set(filterSearchableSymbols(items.map((item) => item.symbol), draft, [], items.length));
+  const visibleItems = draft.trim() ? items.filter((item) => visibleSymbols.has(item.symbol)) : items;
   const selectedSymbol = draft.trim() ? normalizeUsdtSymbol(draft) : "";
   const canAdd = catalog.includes(selectedSymbol) && !itemSymbols.has(selectedSymbol) && items.length < limit;
 
@@ -253,43 +253,37 @@ export function WatchlistModule() {
         </div>
 
         {!unauthorized && (
-          <div className="mt-6">
-            <button type="button" onClick={() => setShowAdd((current) => !current)} className="inline-flex items-center gap-2 rounded-xl border border-foreground/70 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-2">
-              <Plus className="size-4" /> Add Watchlist
-            </button>
-            {showAdd && (
-              <div className="mt-3 flex max-w-xl items-start gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-2" />
-                  <input
-                    autoFocus
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => event.key === "Enter" && canAdd && void add()}
-                    placeholder="Cari BTC, ETH, PNUT..."
-                    role="combobox"
-                    aria-expanded={searchResults.length > 0}
-                    aria-controls="watchlist-search-results"
-                    className="w-full rounded-lg border border-border bg-surface-3 py-2.5 pl-10 pr-3 text-sm focus:border-accent/50 focus:outline-none"
-                  />
-                  {draft.trim() && (
-                    <div id="watchlist-search-results" className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl">
-                      {searchResults.map((symbol) => (
-                        <button
-                          key={symbol}
-                          type="button"
-                          onClick={() => setDraft(symbol.replace(/USDT$/, ""))}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-3"
-                        >
-                          <CoinIcon symbol={symbol} size={28} />
-                          <span className="text-sm font-bold">{symbol.replace(/USDT$/, "")}<span className="font-medium text-muted-2">/USDT</span></span>
-                        </button>
-                      ))}
-                      {searchResults.length === 0 && !canAdd && <p className="px-3 py-3 text-xs text-muted">Coin tidak ditemukan atau sudah ada di watchlist.</p>}
+          <div className="relative mt-6 max-w-xl">
+            <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-2" />
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && canAdd && void add()}
+              placeholder="Cari coin di watchlist atau market..."
+              role="combobox"
+              aria-expanded={searchResults.length > 0}
+              aria-controls="watchlist-search-results"
+              className="w-full rounded-lg border border-border bg-surface-3 py-2.5 pl-10 pr-3 text-sm focus:border-accent/50 focus:outline-none"
+            />
+            {draft.trim() && (
+              <div id="watchlist-search-results" className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl">
+                {searchResults.map((symbol) => {
+                  const saved = itemSymbols.has(symbol);
+                  return (
+                    <div key={symbol} className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-surface-3">
+                      <Link href={`/analysis?symbol=${encodeURIComponent(symbol)}`} className="flex min-w-0 flex-1 items-center gap-3">
+                        <CoinIcon symbol={symbol} size={28} />
+                        <span className="truncate text-sm font-bold">{symbol.replace(/USDT$/, "")}<span className="font-medium text-muted-2">/USDT</span></span>
+                      </Link>
+                      {saved ? (
+                        <Badge tone="positive">Sudah tersimpan</Badge>
+                      ) : (
+                        <button type="button" onClick={() => void add(symbol)} disabled={items.length >= limit} className="inline-flex items-center gap-1 rounded-md bg-accent px-2.5 py-1.5 text-xs font-bold text-white disabled:opacity-40"><Plus className="size-3.5" /> Tambah</button>
+                      )}
                     </div>
-                  )}
-                </div>
-                <button type="button" onClick={() => void add()} disabled={!canAdd} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">Tambah</button>
+                  );
+                })}
+                {searchResults.length === 0 && <p className="px-3 py-3 text-xs text-muted">Coin tidak ditemukan di market.</p>}
               </div>
             )}
           </div>
@@ -318,10 +312,11 @@ export function WatchlistModule() {
             <Search className="size-8 text-muted-2" />
             <p className="mt-4 text-sm font-bold">Watchlist masih kosong</p>
             <p className="mt-1 max-w-sm text-xs text-muted">Cari dan tambahkan coin yang ingin kamu pantau.</p>
-            {!unauthorized && <button type="button" onClick={() => setShowAdd(true)} className="mt-5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white">Cari coin</button>}
+            {!unauthorized && <p className="mt-5 text-xs font-semibold text-accent-2">Gunakan kolom pencarian di atas.</p>}
           </div>
         )}
-        {items.map((item) => (
+        {items.length > 0 && visibleItems.length === 0 && <div className="card p-8 text-center text-sm text-muted">Coin tidak ada di watchlist. Tambahkan melalui hasil pencarian market.</div>}
+        {visibleItems.map((item) => (
           <WatchlistCard key={item.id} item={item} market={marketBySymbol.get(item.symbol)} signal={signalBySymbol.get(item.symbol)} maxVolume={maxVolume} preview={unauthorized} onRemove={(id) => void remove(id)} />
         ))}
       </div>

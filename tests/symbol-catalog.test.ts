@@ -10,6 +10,8 @@ test("removing a watchlist item does not remove it from the search catalog", () 
 });
 
 test("watchlist search finds base assets and excludes saved symbols", () => {
+  assert.deepEqual(filterSearchableSymbols(["BTCUSDT", "WBTCUSDT"], "btc"), ["BTCUSDT", "WBTCUSDT"]);
+
   const results = filterSearchableSymbols(
     ["BTCUSDT", "WBTCUSDT", "ETHUSDT", "BTCUSDC"],
     "btc",
