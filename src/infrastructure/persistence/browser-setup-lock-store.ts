@@ -13,7 +13,9 @@ export function loadSetupSnapshot(symbol: string, timeframe: Timeframe): SetupLo
     const raw = window.localStorage.getItem(setupLockKey(symbol, timeframe));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SetupLockedSnapshot;
-    return parsed.symbol === symbol && parsed.timeframe === timeframe ? parsed : null;
+    return parsed.algorithmVersion === 2 && parsed.symbol === symbol && parsed.timeframe === timeframe
+      ? parsed
+      : null;
   } catch {
     return null;
   }

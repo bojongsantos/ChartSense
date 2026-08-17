@@ -1,6 +1,7 @@
 import type { Timeframe } from "@/core/domain/models";
 
 export interface SetupLockedSnapshot {
+  algorithmVersion: 2;
   symbol: string;
   timeframe: Timeframe;
   zoneType: "supply" | "demand";
