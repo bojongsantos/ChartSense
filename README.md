@@ -52,12 +52,24 @@ Password hanya berasal dari `SEED_USER_PASSWORD` dan `SEED_ADMIN_PASSWORD`. Jang
 
 - `/login`, `/register` — autentikasi.
 - `/watchlist` — watchlist tersimpan per pengguna.
+- `/alerts` — alert harga per pengguna.
+- `/history` — riwayat setup tersimpan beserta hasilnya.
+- `/pricing` — perbandingan Free dan Premium.
+- `/tutorials` — panduan membaca keluaran ChartSense.
 - `/account` — profil, paket, dan checkout Premium.
 - `/admin` — backoffice khusus role ADMIN.
 - `/api/auth/*` — endpoint Better Auth.
 - `/api/watchlist/*` — CRUD watchlist dengan ownership check.
+- `/api/alerts/*`, `/api/notifications/*`, `/api/history/*` — CRUD dengan ownership check.
+- `/api/cron/market-watch` — evaluasi alert dan setup, dilindungi `CRON_SECRET`.
 - `/api/billing/*` — checkout, histori, dan webhook Midtrans.
 - `/api/admin/*` — user, role, plan, feature gate, audit, dan statistik.
+
+## Chart
+
+Interval candle (`15m`, `1H`, `4H`, `1D`) dan rentang histori (`1M`, `3M`, `1Y`, `ALL`) berdiri sendiri. Setiap kombinasi tersedia, sehingga `ALL` dapat dipakai pada interval mana pun.
+
+Rentang dipecah menjadi halaman yang dimuat paralel dari waktu listing, bukan dengan menelusuri mundur satu per satu. Halaman terbaru dimuat lebih dulu agar chart langsung dapat dipakai, sisanya menyusul di latar belakang dengan indikator progres.
 
 ## Verifikasi
 

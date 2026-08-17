@@ -36,8 +36,15 @@ Aturan wajib:
 ## Penempatan file
 
 - Aturan harga, indikator, setup, dan conviction: `core/domain/analysis`.
+- Aturan alert harga: `core/domain/alerts`.
+- Batas paket dan katalog kemampuan: `core/domain/access`.
+- Rate limit endpoint mahal: `core/application/rate-limit`.
+- Aturan penyelesaian setup tersimpan: `core/domain/journal`.
+- Konstanta timeframe dan operasi candle: `core/domain/market`.
 - Use case scanner dan validasi request: `core/application/scanner`.
-- Binance dan agregasi market context: `infrastructure/market-data`.
+- Perencanaan histori chart dan kebijakan failover provider: `core/application/market-data`.
+- Adapter bursa dan agregasi market context: `infrastructure/market-data`.
+- Sweep alert dan evaluasi setup terjadwal: `infrastructure/monitoring`.
 - PostgreSQL/Prisma: `infrastructure/database` dan `prisma/`.
 - Auth/session: `infrastructure/auth`.
 - Payment gateway: port di `core/application/ports`, adapter di `infrastructure/billing`.
