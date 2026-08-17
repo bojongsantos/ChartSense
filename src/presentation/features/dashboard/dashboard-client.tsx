@@ -40,7 +40,7 @@ export function DashboardClient() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const { analysis, loading, error } = useLiveAnalysis(activeSymbol ?? "BTCUSDT", timeframe);
+  const { analysis, loading, error, streamStatus } = useLiveAnalysis(activeSymbol ?? "BTCUSDT", timeframe);
 
   const currentTop = top.find((t) => t.hit.symbol === activeSymbol) ?? null;
 
@@ -163,7 +163,7 @@ export function DashboardClient() {
           {!loading && analysis && (
             <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-2">
               <RefreshCw className="size-3.5" />
-              Live · auto-refresh 4s
+              {streamStatus === "live" ? "Live · realtime stream" : "Live · reconnecting"}
             </span>
           )}
         </div>
