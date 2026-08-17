@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Loader2 } from "lucide-react";
 import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
+import { safeRedirectPath } from "@/shared/lib/safe-redirect";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -28,8 +29,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       return;
     }
     notifyAuthStateChanged();
-    const next = params.get("next");
-    router.replace(next?.startsWith("/") ? next : "/");
+    router.replace(safeRedirectPath(params.get("next")));
     router.refresh();
   }
 
