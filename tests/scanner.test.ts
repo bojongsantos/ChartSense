@@ -60,6 +60,7 @@ test("top setups prioritize live fresh zones and assign stable ranks", () => {
   const result: SdScanResult = {
     demand,
     supply,
+    market: [],
     demandTotal: demand.length,
     supplyTotal: supply.length,
     scannedAt: new Date(0).toISOString(),

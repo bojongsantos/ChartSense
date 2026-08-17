@@ -1,21 +1,149 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Crown, Eye, Loader2, LockKeyhole, Plus, Trash2 } from "lucide-react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import type { SdMarketSnapshot, SdScanHit, SdScanResult } from "@/core/application/scanner/supply-demand-scan-service";
 import { Badge } from "@/presentation/ui/badge";
 import { CoinIcon } from "@/presentation/ui/coin-icon";
+import { formatCompact } from "@/shared/lib/format";
 
-interface WatchlistItem { id: string; symbol: string; enabled: boolean; position: number }
+interface WatchlistItem {
+  id: string;
+  symbol: string;
+  enabled: boolean;
+  position: number;
+}
+
+interface SignalsPayload {
+  result?: SdScanResult;
+  error?: string;
+}
+
+const STATUS_TONES: Record<string, "warning" | "blue" | "positive" | "negative" | "neutral"> = {
+  "Limit Order": "warning",
+  Filled: "blue",
+  Running: "positive",
+  "Target 2 reached": "positive",
+  "Invalidated (SL hit)": "negative",
+  Missed: "neutral",
+};
+
+function statusTone(status?: string) {
+  return STATUS_TONES[status ?? ""] ?? "neutral";
+}
+
+function VolumeBar({ volume, max }: { volume?: number; max: number }) {
+  const percentage = volume == null ? 0 : Math.max(3, (volume / Math.max(max, 1)) * 100);
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-3">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-accent-blue/60 to-accent-blue"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <span className="text-xs font-semibold tabular-nums text-muted">
+        {volume == null ? "—" : formatCompact(volume)}
+      </span>
+    </div>
+  );
+}
+
+function Confidence({ signal }: { signal?: SdScanHit }) {
+  if (!signal) return <span className="text-sm font-semibold text-muted-2">—</span>;
+  const color = signal.direction === "long" ? "var(--color-positive)" : "var(--color-negative)";
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-bold tabular-nums" style={{ color }}>{signal.confidence}%</span>
+      <div className="h-1.5 w-10 overflow-hidden rounded-full bg-surface-3">
+        <div className="h-full rounded-full" style={{ background: color, width: `${signal.confidence}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function WatchlistCard({
+  item,
+  market,
+  signal,
+  maxVolume,
+  preview,
+  onRemove,
+}: {
+  item: WatchlistItem;
+  market?: SdMarketSnapshot;
+  signal?: SdScanHit;
+  maxVolume: number;
+  preview: boolean;
+  onRemove: (id: string) => void;
+}) {
+  const base = item.symbol.replace(/USDT$/, "");
+  const change = market?.change24h;
+
+  return (
+    <article className="card overflow-hidden">
+      <div className="hidden grid-cols-[minmax(180px,1.35fr)_minmax(150px,1fr)_minmax(130px,.9fr)_minmax(140px,.8fr)_68px] border-b border-border/60 bg-surface-2/40 text-[10px] font-semibold uppercase tracking-wide text-muted-2 md:grid">
+        <span className="px-5 py-3">Pair</span>
+        <span className="px-5 py-3">Volume 24H</span>
+        <span className="px-5 py-3">Status</span>
+        <span className="px-5 py-3">Confidence</span>
+        <span className="sr-only">Aksi</span>
+      </div>
+      <div className="grid gap-4 p-4 md:grid-cols-[minmax(180px,1.35fr)_minmax(150px,1fr)_minmax(130px,.9fr)_minmax(140px,.8fr)_68px] md:items-center md:gap-0 md:p-0">
+        <Link href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`} className="flex items-center gap-3 md:px-5 md:py-5">
+          <CoinIcon symbol={item.symbol} size={38} />
+          <span>
+            <span className="block text-base font-bold leading-tight hover:text-accent-2">
+              {base}<span className="font-medium text-muted-2">/USDT</span>
+            </span>
+            <span className={`mt-1 block text-xs tabular-nums ${change == null ? "text-muted-2" : change >= 0 ? "text-positive" : "text-negative"}`}>
+              {change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
+            </span>
+          </span>
+        </Link>
+
+        <div className="flex items-center justify-between md:block md:px-5 md:py-5">
+          <span className="text-[10px] font-semibold uppercase text-muted-2 md:hidden">Volume 24H</span>
+          <VolumeBar volume={market?.volume24h} max={maxVolume} />
+        </div>
+        <div className="flex items-center justify-between md:block md:px-5 md:py-5">
+          <span className="text-[10px] font-semibold uppercase text-muted-2 md:hidden">Status</span>
+          {signal?.status ? <Badge tone={statusTone(signal.status)}>{signal.status}</Badge> : <Badge tone="neutral">No Setup</Badge>}
+        </div>
+        <div className="flex items-center justify-between md:px-5 md:py-5">
+          <span className="text-[10px] font-semibold uppercase text-muted-2 md:hidden">Confidence</span>
+          <Confidence signal={signal} />
+        </div>
+        <div className="flex justify-end border-border/60 md:h-full md:items-center md:justify-center md:border-l">
+          {preview ? (
+            <LockKeyhole className="size-4 text-muted-2" aria-label="View-only" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => onRemove(item.id)}
+              aria-label={`Hapus ${item.symbol}`}
+              className="rounded-xl border border-negative/40 p-3 text-negative transition-colors hover:bg-negative/10"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function WatchlistModule() {
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [plan, setPlan] = useState<"FREE" | "PREMIUM" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scan, setScan] = useState<SdScanResult | null>(null);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/watchlist", { cache: "no-store" });
@@ -31,25 +159,58 @@ export function WatchlistModule() {
       return;
     }
     const payload = await response.json() as { items?: WatchlistItem[]; plan?: "FREE" | "PREMIUM"; error?: { message?: string } };
-    if (!response.ok) { setError(payload.error?.message ?? "Watchlist gagal dimuat."); return; }
+    if (!response.ok) {
+      setError(payload.error?.message ?? "Watchlist gagal dimuat.");
+      return;
+    }
     setItems(payload.items ?? []);
     setPlan(payload.plan ?? "FREE");
   }, []);
 
-  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+
+  const symbolKey = items.map((item) => item.symbol).join(",");
+  useEffect(() => {
+    if (!symbolKey) return;
+    const controller = new AbortController();
+    void fetch("/api/signals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: symbolKey.split(",") }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json() as SignalsPayload;
+        if (!response.ok || !payload.result) throw new Error(payload.error ?? "Data market gagal dimuat.");
+        setScan(payload.result);
+      })
+      .catch((caught) => {
+        if (caught instanceof DOMException && caught.name === "AbortError") return;
+        setError(caught instanceof Error ? caught.message : "Data market gagal dimuat.");
+      })
+    return () => controller.abort();
+  }, [symbolKey]);
 
   async function add() {
     const symbol = draft.trim().toUpperCase();
     if (!/^[A-Z0-9]{4,20}$/.test(symbol)) return;
-    const response = await fetch("/api/watchlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol }) });
+    const response = await fetch("/api/watchlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    });
     const payload = await response.json() as { item?: WatchlistItem; error?: { message?: string } };
-    if (!response.ok || !payload.item) { setError(payload.error?.message ?? "Simbol gagal ditambahkan."); return; }
-    setItems((current) => [...current, payload.item!]); setDraft(""); setError(null);
-  }
-
-  async function toggle(item: WatchlistItem) {
-    const response = await fetch(`/api/watchlist/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: !item.enabled }) });
-    if (response.ok) setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, enabled: !entry.enabled } : entry));
+    if (!response.ok || !payload.item) {
+      setError(payload.error?.message ?? "Simbol gagal ditambahkan.");
+      return;
+    }
+    setItems((current) => [...current, payload.item!]);
+    setDraft("");
+    setShowAdd(false);
+    setError(null);
   }
 
   async function remove(id: string) {
@@ -57,23 +218,79 @@ export function WatchlistModule() {
     if (response.ok) setItems((current) => current.filter((entry) => entry.id !== id));
   }
 
+  const marketBySymbol = useMemo(
+    () => new Map((scan?.market ?? []).map((market) => [market.symbol, market])),
+    [scan],
+  );
+  const signalBySymbol = useMemo(
+    () => new Map([...(scan?.demand ?? []), ...(scan?.supply ?? [])].map((signal) => [signal.symbol, signal])),
+    [scan],
+  );
+  const maxVolume = Math.max(1, ...(scan?.market ?? []).map((market) => market.volume24h));
+  const marketLoading = items.length > 0 && scan === null;
+
   if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="size-5 animate-spin text-muted" /></div>;
 
   const itemSymbols = new Set(items.map((item) => item.symbol));
   const lockedSymbols = plan === "FREE" ? DEFAULT_WATCHLIST.filter((symbol) => !itemSymbols.has(symbol)) : [];
 
-  return <div className="flex flex-col gap-5 p-6">
-    <div><h2 className="text-lg font-bold">{unauthorized ? "Watchlist Pasar" : "Watchlist Saya"}</h2><p className="mt-1 text-xs text-muted">{unauthorized ? "Pratinjau publik. Login untuk membuat watchlist pribadi." : `${items.filter((item) => item.enabled).length} aktif dari ${items.length} simbol.${lockedSymbols.length ? ` ${lockedSymbols.length} coin Premium terkunci.` : ""}`}</p></div>
-    {unauthorized ? (
-      <div className="flex flex-col gap-3 rounded-xl border border-accent/25 bg-accent/10 p-4 sm:flex-row sm:items-center">
-        <div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Eye className="size-4" /></span><div><p className="text-sm font-bold">Mode view-only</p><p className="mt-1 text-xs text-muted">Analisis tetap dapat dilihat. Penyimpanan dan perubahan watchlist memerlukan akun.</p></div></div>
-        <div className="flex gap-2 sm:ml-auto"><Link href="/login?next=/watchlist" className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-bold">Masuk</Link><Link href="/register" className="rounded-lg bg-accent px-3 py-2 text-xs font-bold text-white">Daftar</Link></div>
+  return (
+    <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Watchlist</h1>
+            <p className="mt-2 text-xs text-muted">
+              {unauthorized ? "Pratinjau publik. Login untuk membuat watchlist pribadi." : `${items.length} coin dipantau.${lockedSymbols.length ? ` ${lockedSymbols.length} coin Premium terkunci.` : ""}`}
+            </p>
+          </div>
+          {marketLoading && <span className="inline-flex items-center gap-2 text-xs text-muted"><Loader2 className="size-3.5 animate-spin" /> Memuat market data</span>}
+        </div>
+
+        {!unauthorized && (
+          <div className="mt-6">
+            <button type="button" onClick={() => setShowAdd((current) => !current)} className="inline-flex items-center gap-2 rounded-xl border border-foreground/70 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-2">
+              <Plus className="size-4" /> Add Watchlist
+            </button>
+            {showAdd && (
+              <div className="mt-3 flex max-w-xl gap-2">
+                <input autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void add()} placeholder="BTCUSDT" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" />
+                <button type="button" onClick={() => void add()} disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())} className="rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Tambah</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    ) : (
-      <div className="flex gap-2"><input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} placeholder="BTCUSDT" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" /><button onClick={() => void add()} disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><Plus className="size-4" />Tambah</button></div>
-    )}
-    {lockedSymbols.length > 0 && <div className="flex flex-col gap-3 rounded-xl border border-accent/25 bg-accent/10 p-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Crown className="size-4" /></span><div><p className="text-sm font-bold">Buka seluruh 200 coin</p><p className="mt-1 text-xs text-muted">Paket Free mencakup 20 coin. Upgrade Premium untuk membuka sisanya.</p></div></div><Link href="/account" className="rounded-lg bg-gradient-to-r from-accent to-accent-blue px-4 py-2 text-center text-xs font-bold text-white sm:ml-auto">Upgrade Premium</Link></div>}
-    {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
-    <div className="card divide-y divide-border/60 overflow-hidden">{items.length === 0 && lockedSymbols.length === 0 && <div className="p-8 text-center text-sm text-muted">Watchlist masih kosong.</div>}{items.map((item, index) => <div key={item.id} className="flex items-center gap-3 px-4 py-3"><span className="w-8 text-xs text-muted-2">#{index + 1}</span><Link href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`} className="flex items-center gap-2 font-bold hover:text-accent-2"><CoinIcon symbol={item.symbol} /><span>{item.symbol.replace(/USDT$/, "")}<span className="font-medium text-muted-2">/USDT</span></span></Link><span className="flex-1" />{unauthorized ? <><Badge tone="neutral">Preview</Badge><LockKeyhole className="size-4 text-muted-2" aria-label="View-only" /></> : <><Badge tone={item.enabled ? "positive" : "neutral"}>{item.enabled ? "Aktif" : "Nonaktif"}</Badge><button onClick={() => void toggle(item)} className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold">{item.enabled ? "Nonaktifkan" : "Aktifkan"}</button><button onClick={() => void remove(item.id)} aria-label={`Hapus ${item.symbol}`} className="p-1.5 text-muted hover:text-negative"><Trash2 className="size-4" /></button></>}</div>)}{lockedSymbols.map((symbol, index) => <div key={`locked-${symbol}`} className="relative flex items-center gap-3 bg-surface-2/40 px-4 py-3 text-muted-2"><span className="w-8 text-xs">#{items.length + index + 1}</span><span className="flex select-none items-center gap-2 font-bold blur-[3px]" aria-hidden="true"><CoinIcon symbol={symbol} />{symbol}</span><span className="flex-1" /><Badge tone="neutral">Premium</Badge><LockKeyhole className="size-4" aria-label="Terkunci untuk paket Free" /></div>)}</div>
-  </div>;
+
+      {unauthorized && (
+        <div className="flex flex-col gap-3 rounded-xl border border-accent/25 bg-accent/10 p-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Eye className="size-4" /></span><div><p className="text-sm font-bold">Mode view-only</p><p className="mt-1 text-xs text-muted">Analisis tetap dapat dilihat. Penyimpanan dan perubahan watchlist memerlukan akun.</p></div></div>
+          <div className="flex gap-2 sm:ml-auto"><Link href="/login?next=/watchlist" className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-bold">Masuk</Link><Link href="/register" className="rounded-lg bg-accent px-3 py-2 text-xs font-bold text-white">Daftar</Link></div>
+        </div>
+      )}
+
+      {lockedSymbols.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-xl border border-accent/25 bg-accent/10 p-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Crown className="size-4" /></span><div><p className="text-sm font-bold">Buka seluruh 200 coin</p><p className="mt-1 text-xs text-muted">Paket Free mencakup 20 coin. Upgrade Premium untuk membuka sisanya.</p></div></div>
+          <Link href="/account" className="rounded-lg bg-gradient-to-r from-accent to-accent-blue px-4 py-2 text-center text-xs font-bold text-white sm:ml-auto">Upgrade Premium</Link>
+        </div>
+      )}
+
+      {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
+
+      <div className="flex flex-col gap-5">
+        {items.length === 0 && lockedSymbols.length === 0 && <div className="card p-8 text-center text-sm text-muted">Watchlist masih kosong.</div>}
+        {items.map((item) => (
+          <WatchlistCard key={item.id} item={item} market={marketBySymbol.get(item.symbol)} signal={signalBySymbol.get(item.symbol)} maxVolume={maxVolume} preview={unauthorized} onRemove={(id) => void remove(id)} />
+        ))}
+        {lockedSymbols.map((symbol, index) => (
+          <div key={`locked-${symbol}`} className="card relative flex items-center gap-3 overflow-hidden bg-surface-2/40 px-5 py-5 text-muted-2">
+            <span className="w-8 text-xs">#{items.length + index + 1}</span>
+            <span className="flex select-none items-center gap-3 font-bold blur-[3px]" aria-hidden="true"><CoinIcon symbol={symbol} size={38} />{symbol}</span>
+            <span className="flex-1" /><Badge tone="neutral">Premium</Badge><LockKeyhole className="size-4" aria-label="Terkunci untuk paket Free" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
