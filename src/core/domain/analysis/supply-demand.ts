@@ -325,6 +325,7 @@ export function detectSupplyDemand(
     if (status === "Running" && symbol && lockStore) {
       runningSince = Date.now();
       lockedSnapshot = {
+        algorithmVersion: 2,
         symbol,
         timeframe,
         zoneType: zone.type,
