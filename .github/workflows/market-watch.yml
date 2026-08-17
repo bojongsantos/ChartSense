@@ -1,0 +1,52 @@
+name: Market watch
+
+# Vercel Hobby allows only one cron run per day, which is far too slow for
+# price alerts. This workflow drives the same endpoint on a useful interval.
+# Delete it once the project moves to Vercel Pro and vercel.json can carry a
+# frequent schedule on its own.
+#
+# Every 30 minutes keeps the job inside the free Actions allowance for a
+# private repository. GitHub schedules are best effort and can run late under
+# load, so treat the interval as an upper bound rather than a guarantee.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-watch
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger the market watch sweep
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "PRODUCTION_URL atau CRON_SECRET belum diset sebagai repository secret."
+            echo "Sweep dilewati; alert tidak akan dievaluasi sampai keduanya diisi."
+            exit 1
+          fi
+
+          status=$(curl -sS -o response.json -w "%{http_code}" \
+            --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/market-watch")
+
+          echo "HTTP $status"
+          cat response.json
+          echo
+
+          # A non-2xx here means alerts silently stopped being evaluated, so
+          # the run must fail loudly rather than look healthy.
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            exit 1
+          fi

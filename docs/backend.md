@@ -45,7 +45,16 @@ Evaluasi berjalan pada endpoint cron:
 GET https://DOMAIN/api/cron/market-watch
 ```
 
-Handler memerlukan header `Authorization: Bearer $CRON_SECRET`. Tanpa `CRON_SECRET` endpoint menolak seluruh permintaan dengan status 503, bukan terbuka. Jadwal diatur pada `vercel.json` setiap lima menit.
+Handler memerlukan header `Authorization: Bearer $CRON_SECRET`. Tanpa `CRON_SECRET` endpoint menolak seluruh permintaan dengan status 503, bukan terbuka.
+
+Penjadwalan memakai dua sumber karena paket Vercel Hobby hanya mengizinkan satu eksekusi cron per hari:
+
+- `vercel.json` menjadwalkan satu sweep harian sebagai jaring pengaman.
+- `.github/workflows/market-watch.yml` memanggil endpoint yang sama setiap tiga puluh menit. Interval tersebut menjaga penggunaan tetap berada dalam kuota GitHub Actions gratis untuk repositori privat.
+
+Workflow memerlukan dua repository secret, yaitu `PRODUCTION_URL` dan `CRON_SECRET`, dan sengaja gagal secara nyaring bila keduanya kosong atau endpoint membalas non-2xx. Sweep yang berhenti diam-diam berarti alert tidak lagi dievaluasi tanpa ada yang mengetahui.
+
+Setelah proyek berpindah ke Vercel Pro, workflow tersebut dapat dihapus dan jadwal dikembalikan ke `vercel.json`.
 
 Alert dievaluasi terhadap harga ticker terkini. Setup dievaluasi terhadap rentang harga harian sejak setup disimpan. Bila target dan stop tersentuh pada rentang yang sama, hasil dicatat sebagai `STOPPED_OUT` karena urutan intrabar tidak dapat dipastikan. Sweep bersifat idempotent sehingga eksekusi ganda tidak menduplikasi notifikasi.
 
