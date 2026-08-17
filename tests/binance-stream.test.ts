@@ -3,8 +3,10 @@ import test from "node:test";
 import {
   applyRecentCandles,
   mergeCandleSeries,
+  olderThan,
   upsertLatestCandle,
 } from "@/core/domain/market/candles";
+import type { Candle } from "@/core/domain/models";
 import { parseBinanceStreamMessage } from "@/infrastructure/market-data/binance-stream-client";
 
 test("Binance stream messages map to live candles and tickers", () => {
@@ -70,6 +72,49 @@ test("a live update refreshes the forming bar and ignores stale frames", () => {
     time: 10, open: 99, high: 99, low: 99, close: 99, volume: 99,
   });
   assert.deepEqual(stale, series);
+});
+
+function bar(time: number): Candle {
+  return { time, open: 1, high: 2, low: 0, close: 1, volume: 1 };
+}
+
+test("prepending trimmed history keeps the joined series strictly ascending", () => {
+  // The chart rejects any series that steps backwards, and a backfill always
+  // overlaps the window already on screen because it covers the whole range.
+  const recent = [bar(300), bar(400), bar(500)];
+  const overlapping = [bar(100), bar(200), bar(300), bar(400)];
+
+  const trimmed = olderThan(overlapping, recent[0].time);
+  assert.deepEqual(trimmed.map((c) => c.time), [100, 200]);
+
+  const joined = [...trimmed, ...recent];
+  for (let i = 1; i < joined.length; i++) {
+    assert.ok(joined[i].time > joined[i - 1].time, "joined series must ascend");
+  }
+});
+
+test("successive prepends stay ordered and never reintroduce an overlap", () => {
+  const chunks: Candle[][] = [];
+  const recent = [bar(500), bar(600)];
+  const oldest = () => chunks[0]?.[0].time ?? recent[0].time;
+
+  // Each stretch arrives older than the last, and each still repeats a bar or
+  // two of what is already held.
+  for (const batch of [[bar(300), bar(400), bar(500)], [bar(100), bar(200), bar(300)]]) {
+    const trimmed = olderThan(batch, oldest());
+    if (trimmed.length > 0) chunks.unshift(trimmed);
+  }
+
+  const joined = [...chunks.flat(), ...recent];
+  assert.deepEqual(joined.map((c) => c.time), [100, 200, 300, 400, 500, 600]);
+});
+
+test("an unbounded boundary keeps the batch whole without mutating it", () => {
+  const batch = [bar(10), bar(20)];
+  const copy = olderThan(batch, Number.POSITIVE_INFINITY);
+  assert.deepEqual(copy.map((c) => c.time), [10, 20]);
+  assert.notEqual(copy, batch);
+  assert.deepEqual(olderThan(batch, 10).map((c) => c.time), []);
 });
 
 test("a REST poll refreshes every bar it covers, including the one that just closed", () => {

@@ -14,6 +14,18 @@ export function mergeCandleSeries(...batches: readonly (readonly Candle[])[]): C
 }
 
 /**
+ * Keeps only the bars strictly older than `boundary`.
+ *
+ * A history request covers a whole range, so its newest pages overlap the
+ * window already on screen. Concatenating the two without trimming produces a
+ * series that steps backwards in the middle, which a chart rejects outright.
+ */
+export function olderThan(batch: readonly Candle[], boundary: number): Candle[] {
+  if (!Number.isFinite(boundary)) return batch.slice();
+  return batch.filter((candle) => candle.time < boundary);
+}
+
+/**
  * Replaces the tail of a series with a freshly fetched batch of recent bars.
  *
  * Used for the REST poll, whose response is authoritative for every bar it

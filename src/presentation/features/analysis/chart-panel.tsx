@@ -168,6 +168,8 @@ export function ChartPanel({
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const liveCandlesRef = useRef<Candle[]>([]);
+  /** Shape of the series currently uploaded to the chart. */
+  const renderedRef = useRef<{ first: number; length: number } | null>(null);
   const patternSeriesRef = useRef<ISeriesApi<"Line" | "Baseline">[]>([]);
   const zoneLabelPrimitiveRef = useRef<IPanePrimitive<Time> | null>(null);
   const patternMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
@@ -186,17 +188,34 @@ export function ChartPanel({
 
   const renderLive = useCallback((candles: Candle[]) => {
     const cs = candleSeriesRef.current;
-    if (!cs) return;
+    if (!cs || candles.length === 0) return;
 
-    cs.setData(
-      candles.map((c) => ({
-        time: c.time as UTCTimestamp,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      })),
-    );
+    const bar = (c: Candle) => ({
+      time: c.time as UTCTimestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    });
+
+    // setData re-uploads the whole series, which is ruinous once the chart
+    // holds hundreds of thousands of bars. When only the tail moved — a live
+    // tick refreshing the forming bar, or one new bar opening — update that
+    // single bar instead. A full upload is reserved for the cases that really
+    // changed the series: history prepended, or a new symbol/timeframe/range.
+    const previous = renderedRef.current;
+    const first = candles[0].time;
+    const grewByOne = previous !== null && candles.length === previous.length + 1;
+    const sameLength = previous !== null && candles.length === previous.length;
+
+    if (previous !== null && previous.first === first && (sameLength || grewByOne)) {
+      cs.update(bar(candles[candles.length - 1]));
+      renderedRef.current = { first, length: candles.length };
+      return;
+    }
+
+    cs.setData(candles.map(bar));
+    renderedRef.current = { first, length: candles.length };
   }, []);
 
   useEffect(() => {
@@ -261,6 +280,7 @@ export function ChartPanel({
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
+      renderedRef.current = null;
       patternSeriesRef.current = [];
       patternMarkersRef.current = null;
       priceLineRef.current = [];
@@ -298,6 +318,10 @@ export function ChartPanel({
     const prependedBars = previousFirstTime === undefined
       ? 0
       : Math.max(0, data.candles.findIndex((candle) => candle.time === previousFirstTime));
+
+    // A different market is a different series, so force a full upload rather
+    // than letting the tail-update shortcut compare against the old view.
+    if (isNewView) renderedRef.current = null;
 
     liveCandlesRef.current = data.candles;
     renderLive(data.candles);

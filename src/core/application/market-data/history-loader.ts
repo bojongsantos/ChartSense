@@ -15,11 +15,16 @@ export const HISTORY_PAGE_SIZE = 1_000;
 export const HISTORY_CONCURRENCY = 5;
 
 /**
- * Upper bound on candles held in memory for one chart. Reaching this only
- * happens on intraday lifetime requests for the oldest pairs, and the loader
- * reports it through `truncated` instead of silently trimming.
+ * Upper bound on candles held in memory for one chart.
+ *
+ * Sized by what a chart can actually ingest rather than by what an exchange
+ * will serve: handing the series to the chart costs around two seconds per
+ * hundred thousand bars, and no zoom level shows more than a few hundred at
+ * once. This still covers the full life of every pair on 1H, 4H and 1D, and
+ * roughly four years on 15m. Reaching the ceiling is reported through
+ * `truncated` rather than silently trimmed, and scrolling left loads more.
  */
-export const MAX_HISTORY_CANDLES = 300_000;
+export const MAX_HISTORY_CANDLES = 150_000;
 
 export interface HistoryProgress {
   loadedPages: number;
@@ -66,8 +71,12 @@ export interface LoadHistoryOptions {
   listingSeconds: number | null;
   signal?: AbortSignal;
   onProgress?: (progress: HistoryProgress) => void;
-  /** Receives the merged series as pages land, so the chart fills in live. */
-  onPartial?: (candles: Candle[]) => void;
+  /**
+   * Receives each newly contiguous stretch of history as pages land, oldest
+   * bar first. Successive calls hand back progressively older stretches, so
+   * the caller prepends them rather than replacing what it already holds.
+   */
+  onPartial?: (olderCandles: Candle[]) => void;
 }
 
 /**
@@ -93,6 +102,10 @@ export async function loadHistory(options: LoadHistoryOptions): Promise<HistoryL
   const batches: Candle[][] = Array.from({ length: totalPages }, () => []);
   const fetched: boolean[] = Array.from({ length: totalPages }, () => false);
   let loadedPages = 0;
+  let loadedCandles = 0;
+  // Oldest page index already handed to onPartial. Everything from here to the
+  // end of the plan has been emitted as one continuous run.
+  let emittedEdge = totalPages;
 
   // Newest page first. Each completed page then extends the series further
   // back from the part the user is already looking at, so intermediate states
@@ -114,18 +127,22 @@ export async function loadHistory(options: LoadHistoryOptions): Promise<HistoryL
       batches[index] = page;
       fetched[index] = true;
       loadedPages++;
-      options.onProgress?.({
-        loadedPages,
-        totalPages,
-        candles: batches.reduce((sum, batch) => sum + batch.length, 0),
-      });
+      loadedCandles += page.length;
+      options.onProgress?.({ loadedPages, totalPages, candles: loadedCandles });
 
       if (!options.onPartial) return;
-      const contiguous: Candle[][] = [];
-      for (let cursor = totalPages - 1; cursor >= 0 && fetched[cursor]; cursor--) {
-        contiguous.unshift(batches[cursor]);
-      }
-      if (contiguous.length > 0) options.onPartial(mergeCandleSeries(...contiguous));
+      // Emit only the pages that just became contiguous, never the whole
+      // accumulated series. Re-merging everything on each page turned this
+      // loop into O(n^2) work and froze the main thread for seconds at a time.
+      let cursor = emittedEdge - 1;
+      while (cursor >= 0 && fetched[cursor]) cursor--;
+      const nextEdge = cursor + 1;
+      if (nextEdge >= emittedEdge) return;
+
+      const delta: Candle[] = [];
+      for (let page = nextEdge; page < emittedEdge; page++) delta.push(...batches[page]);
+      emittedEdge = nextEdge;
+      if (delta.length > 0) options.onPartial(delta);
     },
     HISTORY_CONCURRENCY,
   );

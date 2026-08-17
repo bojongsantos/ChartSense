@@ -12,11 +12,7 @@ import {
   type HistoryRange,
 } from "@/core/application/market-data/history-plan";
 import { buildAnalysisResult } from "@/core/domain/analysis/analysis-engine";
-import {
-  applyRecentCandles,
-  mergeCandleSeries,
-  upsertLatestCandle,
-} from "@/core/domain/market/candles";
+import { applyRecentCandles, olderThan, upsertLatestCandle } from "@/core/domain/market/candles";
 import type { AnalysisResult, Candle, MarketTicker, Timeframe } from "@/core/domain/models";
 import { marketData } from "@/infrastructure/market-data/market-data-provider";
 import {
@@ -30,8 +26,14 @@ export const FALLBACK_POLL_MS = 4_000;
 /** Candles fed to the analysis engine. Older bars are for the chart only. */
 const ANALYSIS_WINDOW_SIZE = 1_000;
 
-/** Minimum gap between chart repaints while history streams in. */
-const PUBLISH_THROTTLE_MS = 150;
+/**
+ * Minimum gap between chart repaints for live price movement.
+ *
+ * Every repaint re-runs the analysis and redraws the setup zone, so repainting
+ * on each websocket tick spent most of a frame budget refreshing a candle that
+ * had barely moved. Two and a half updates per second still reads as live.
+ */
+const LIVE_THROTTLE_MS = 400;
 
 export interface HistoryState {
   loading: boolean;
@@ -92,22 +94,78 @@ export function useLiveAnalysis(
     let publishTimer: ReturnType<typeof setTimeout> | undefined;
     let unsubscribe: (() => void) | undefined;
 
-    let candles: Candle[] = [];
+    // The series is kept in two pieces so bulk history never forces a re-sort.
+    // `older` holds backfilled stretches, ascending and all older than
+    // `recent`; `recent` holds the newest window plus every live update. They
+    // are joined lazily and the result memoised, so repeated publishes without
+    // a change cost nothing.
+    const older: Candle[][] = [];
+    const pendingOlder: Candle[][] = [];
+    let recent: Candle[] = [];
+    let composed: Candle[] | null = null;
     let ticker: MarketTicker | null = null;
     let listingSeconds: number | null = null;
     let lastPublishedAt = 0;
     let extending = false;
     let exhausted = false;
 
+    function series(): Candle[] {
+      if (composed) return composed;
+      composed = older.length === 0 ? recent : [...older.flat(), ...recent];
+      return composed;
+    }
+
+    function invalidate() {
+      composed = null;
+    }
+
+    /**
+     * Adds a stretch of history in front of everything held so far. Any
+     * overlap with what is already loaded is trimmed, because a backfill
+     * covers the whole range and its newest pages repeat the visible window.
+     *
+     * Stretches wait in `pendingOlder` until committed, so a burst of pages
+     * does not push the chart's left edge on every single one.
+     */
+    function prependOlder(batch: Candle[]) {
+      if (batch.length === 0) return;
+      const trimmed = olderThan(batch, oldestTime() ?? Number.POSITIVE_INFINITY);
+      if (trimmed.length === 0) return;
+      pendingOlder.unshift(trimmed);
+    }
+
+    /**
+     * Hands every waiting stretch to the chart in one go.
+     *
+     * Called when a load finishes rather than as pages arrive. Extending the
+     * left edge forces the chart to ingest the whole series again, and that
+     * single operation dominates the cost of a lifetime load — roughly two
+     * seconds for a hundred thousand bars. Doing it per page repeated that
+     * stall continuously while the new bars sat far off-screen, where nobody
+     * could see them anyway.
+     */
+    function commitOlder(): boolean {
+      if (pendingOlder.length === 0) return false;
+      older.unshift(...pendingOlder);
+      pendingOlder.length = 0;
+      invalidate();
+      return true;
+    }
+
+    function oldestTime(): number | null {
+      const first = pendingOlder[0]?.[0] ?? older[0]?.[0] ?? recent[0];
+      return first?.time ?? null;
+    }
+
     function reachedStart(): boolean {
-      return (
-        exhausted ||
-        (listingSeconds !== null && candles.length > 0 && candles[0].time <= listingSeconds)
-      );
+      const oldest = oldestTime();
+      return exhausted || (listingSeconds !== null && oldest !== null && oldest <= listingSeconds);
     }
 
     function render() {
-      if (cancelled || !ticker || candles.length === 0) return;
+      if (cancelled || !ticker) return;
+      const candles = series();
+      if (candles.length === 0) return;
       lastPublishedAt = Date.now();
       const base = symbol.replace(/USDT$/, "") || symbol;
       const result = buildAnalysisResult(
@@ -127,8 +185,9 @@ export function useLiveAnalysis(
     /** Repaints at most once per throttle window, never dropping the last frame. */
     function publish() {
       if (cancelled) return;
+      const gap = LIVE_THROTTLE_MS;
       const elapsed = Date.now() - lastPublishedAt;
-      if (elapsed >= PUBLISH_THROTTLE_MS) {
+      if (elapsed >= gap) {
         if (publishTimer) {
           clearTimeout(publishTimer);
           publishTimer = undefined;
@@ -140,12 +199,12 @@ export function useLiveAnalysis(
       publishTimer = setTimeout(() => {
         publishTimer = undefined;
         render();
-      }, PUBLISH_THROTTLE_MS - elapsed);
+      }, gap - elapsed);
     }
 
     function fail(caught: unknown) {
       if (cancelled || controller.signal.aborted) return;
-      if (candles.length === 0) {
+      if (recent.length === 0) {
         setAnalysis(null);
         setError(caught instanceof Error ? caught.message : String(caught));
       }
@@ -168,7 +227,8 @@ export function useLiveAnalysis(
           }),
         ]);
         if (cancelled) return;
-        candles = latestCandles;
+        recent = latestCandles;
+        invalidate();
         ticker = latestTicker;
         render();
       } catch (caught) {
@@ -186,7 +246,6 @@ export function useLiveAnalysis(
         listingSeconds = null;
       }
       if (cancelled) return;
-
       try {
         const loaded = await loadHistory({
           marketData,
@@ -199,14 +258,17 @@ export function useLiveAnalysis(
           onProgress: (progress) => {
             if (!cancelled) setHistory((prev) => ({ ...prev, progress }));
           },
-          onPartial: (older) => {
+          onPartial: (batch) => {
             if (cancelled) return;
-            candles = mergeCandleSeries(older, candles);
-            publish();
+            // Accumulate only. The chart is left untouched until the load ends.
+            prependOlder(batch);
           },
         });
         if (cancelled) return;
-        candles = mergeCandleSeries(loaded.candles, candles);
+        // The stretches already arrived through onPartial; the returned series
+        // only matters when no partial handler consumed them.
+        if (older.length === 0 && pendingOlder.length === 0) prependOlder(loaded.candles);
+        commitOlder();
         setHistory({
           loading: false,
           progress: null,
@@ -230,7 +292,8 @@ export function useLiveAnalysis(
         ]);
         if (cancelled) return;
         ticker = latestTicker;
-        candles = applyRecentCandles(candles, latest);
+        recent = applyRecentCandles(recent, latest);
+        invalidate();
         publish();
       } catch (caught) {
         fail(caught);
@@ -239,20 +302,24 @@ export function useLiveAnalysis(
 
     /** Scroll-triggered paging further back than the loaded window. */
     loadMoreRef.current = async () => {
-      if (cancelled || extending || exhausted || candles.length === 0) return;
+      const oldest = oldestTime();
+      if (cancelled || extending || exhausted || oldest === null) return;
       extending = true;
       setHistory((prev) => ({ ...prev, loading: true }));
       try {
-        const older = await marketData.fetchKlines({
+        const batch = await marketData.fetchKlines({
           symbol,
           timeframe,
           limit: HISTORY_PAGE_SIZE,
-          endTime: candles[0].time * 1_000 - 1,
+          endTime: oldest * 1_000 - 1,
           signal: controller.signal,
         });
         if (cancelled) return;
-        if (older.length === 0) exhausted = true;
-        candles = mergeCandleSeries(older, candles);
+        if (batch.length === 0) exhausted = true;
+        // A scroll-triggered page is the one case the user is waiting to see,
+        // so it goes straight to the chart.
+        prependOlder(batch);
+        commitOlder();
         publish();
       } catch (caught) {
         fail(caught);
@@ -267,7 +334,7 @@ export function useLiveAnalysis(
     void loadRecent().then(async () => {
       // Nothing loaded means the symbol failed outright; clear the history
       // spinner instead of leaving it running behind the error.
-      if (cancelled || candles.length === 0) {
+      if (cancelled || recent.length === 0) {
         if (!cancelled) setHistory((prev) => ({ ...prev, loading: false }));
         return;
       }
@@ -276,7 +343,10 @@ export function useLiveAnalysis(
         timeframe,
         (update) => {
           if (cancelled) return;
-          if (update.candle) candles = upsertLatestCandle(candles, update.candle);
+          if (update.candle) {
+            recent = upsertLatestCandle(recent, update.candle);
+            invalidate();
+          }
           if (update.ticker) ticker = update.ticker;
           publish();
         },

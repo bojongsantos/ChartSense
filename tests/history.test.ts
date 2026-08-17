@@ -199,13 +199,13 @@ test("intraday timeframes reach the listing date too, not just 1D", async () => 
   assert.equal(loaded.candles.length, 5_001);
 });
 
-test("partial batches always form one contiguous run of time", async () => {
+test("partials are disjoint older stretches that rebuild one continuous run", async () => {
   const step = TIMEFRAME_SECONDS["1H"];
   const now = 1_700_000_000 - (1_700_000_000 % step);
   const listing = now - 3_500 * step;
   const partials: Candle[][] = [];
 
-  await loadHistory({
+  const loaded = await loadHistory({
     marketData: fakeMarket(listing, "1H", now),
     symbol: "SOLUSDT",
     timeframe: "1H",
@@ -215,12 +215,32 @@ test("partial batches always form one contiguous run of time", async () => {
     onPartial: (candles) => partials.push(candles),
   });
 
-  assert.ok(partials.length > 1);
+  assert.ok(partials.length > 1, "a multi-page load should emit more than one stretch");
+
   for (const batch of partials) {
+    assert.ok(batch.length > 0, "an empty stretch is not worth emitting");
     for (let i = 1; i < batch.length; i++) {
-      assert.equal(batch[i].time - batch[i - 1].time, step, "partial render must not contain gaps");
+      assert.equal(batch[i].time - batch[i - 1].time, step, "a stretch must not contain gaps");
     }
-    // Every partial is anchored to the newest bar the user is looking at.
-    assert.equal(batch.at(-1)!.time, now);
   }
+
+  // Each stretch is strictly older than the one before it, so a consumer can
+  // prepend rather than merge. Re-emitting the whole accumulated series here
+  // is what previously turned the load into O(n^2) work.
+  for (let i = 1; i < partials.length; i++) {
+    const previousOldest = partials[i - 1][0].time;
+    assert.ok(
+      partials[i].at(-1)!.time < previousOldest,
+      "stretches must not overlap the ones already emitted",
+    );
+  }
+
+  // Prepending them in emission order reproduces the final series exactly.
+  const rebuilt = [...partials].reverse().flat();
+  assert.deepEqual(
+    rebuilt.map((candle) => candle.time),
+    loaded.candles.map((candle) => candle.time),
+  );
+  assert.equal(rebuilt[0].time, listing);
+  assert.equal(rebuilt.at(-1)!.time, now);
 });
