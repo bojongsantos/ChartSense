@@ -54,7 +54,7 @@ export async function runScanner(
       try {
         const ticker = tickerMap.get(symbol);
         if (!ticker) throw new Error(`No ticker for ${symbol}`);
-        const candles = await marketData.fetchKlines(symbol, SCAN_TIMEFRAME, 100);
+        const candles = await marketData.fetchKlines({ symbol, timeframe: SCAN_TIMEFRAME, limit: 100 });
         const sd = detectSupplyDemand(candles, symbol, SCAN_TIMEFRAME);
         if (!sd.setup) return null;
 

@@ -64,7 +64,7 @@ export async function runSdScan(
     symbols,
     async (symbol) => {
       try {
-        const candles = await marketData.fetchKlines(symbol, SD_SCAN_TIMEFRAME, 100);
+        const candles = await marketData.fetchKlines({ symbol, timeframe: SD_SCAN_TIMEFRAME, limit: 100 });
         sparklineMap.set(symbol, candles.slice(-96).map((candle) => candle.close));
         const sd: SdResult = detectSupplyDemand(candles, symbol, SD_SCAN_TIMEFRAME);
         if (!sd.setup) return;

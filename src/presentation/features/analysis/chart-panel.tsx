@@ -22,9 +22,16 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
+import {
+  HISTORY_RANGES,
+  HISTORY_RANGE_HINT,
+  type HistoryRange,
+} from "@/core/application/market-data/history-plan";
+import { TIMEFRAMES, TIMEFRAME_SECONDS } from "@/core/domain/market/timeframe";
 import type { Candle, ChartData, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
 import { formatPrice } from "@/shared/lib/format";
 import { usePlan } from "@/presentation/features/access/plan-provider";
+import type { HistoryState } from "@/presentation/hooks/use-live-analysis";
 
 /**
  * Draws a single text label centered inside a zone box on the chart pane.
@@ -115,26 +122,17 @@ interface ChartPanelProps {
   data: ChartData;
   timeframe: Timeframe;
   onTimeframeChange: (tf: Timeframe) => void;
+  range: HistoryRange;
+  onRangeChange: (range: HistoryRange) => void;
   symbol: string;
   precision: number;
   price: number;
   change24h: number;
   pattern: PatternSummary;
   levels: TradeLevel[];
-  historyLoading: boolean;
-  hasMoreHistory: boolean;
+  history: HistoryState;
   onLoadMoreHistory: () => Promise<void>;
 }
-
-const TIMEFRAMES: Timeframe[] = ["15m", "1H", "4H", "1D"];
-
-/** Seconds per candle for each supported timeframe. */
-const TF_SECONDS: Record<Timeframe, number> = {
-  "15m": 900,
-  "1H": 3600,
-  "4H": 14400,
-  "1D": 86400,
-};
 
 /** How many future candles the setup zone extends. */
 const ZONE_EXTEND_BARS = 12;
@@ -153,14 +151,15 @@ export function ChartPanel({
   data,
   timeframe,
   onTimeframeChange,
+  range,
+  onRangeChange,
   symbol,
   precision,
   price,
   change24h,
   pattern,
   levels,
-  historyLoading,
-  hasMoreHistory,
+  history,
   onLoadMoreHistory,
 }: ChartPanelProps) {
   const { canAccess } = usePlan();
@@ -178,12 +177,12 @@ export function ChartPanel({
   const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
   const historyRequestArmedRef = useRef(true);
   const loadMoreHistoryRef = useRef(onLoadMoreHistory);
-  const canLoadHistoryRef = useRef(hasMoreHistory && !historyLoading);
+  const canLoadHistoryRef = useRef(!history.reachedStart && !history.loading);
 
   useEffect(() => {
     loadMoreHistoryRef.current = onLoadMoreHistory;
-    canLoadHistoryRef.current = hasMoreHistory && !historyLoading;
-  }, [hasMoreHistory, historyLoading, onLoadMoreHistory]);
+    canLoadHistoryRef.current = !history.reachedStart && !history.loading;
+  }, [history.reachedStart, history.loading, onLoadMoreHistory]);
 
   const renderLive = useCallback((candles: Candle[]) => {
     const cs = candleSeriesRef.current;
@@ -277,17 +276,17 @@ export function ChartPanel({
     chart.timeScale().applyOptions({
       timeVisible: timeframe !== "1D",
       barSpacing: timeframe === "1D" ? 8 : 7,
-      fixLeftEdge: !hasMoreHistory,
+      fixLeftEdge: history.reachedStart,
       fixRightEdge: false,
     });
     candles.applyOptions({ priceFormat: { type: "price", precision, minMove: 10 ** -precision } });
-  }, [hasMoreHistory, precision, timeframe]);
+  }, [history.reachedStart, precision, timeframe]);
 
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
 
-    const key = `${symbol}|${timeframe}`;
+    const key = `${symbol}|${timeframe}|${range}`;
     const isNewView = key !== fittedKeyRef.current;
 
     // Keep the user's scroll position across live updates. Only re-fit when the
@@ -336,7 +335,7 @@ export function ChartPanel({
         to: savedRange.to + prependedBars,
       });
     }
-  }, [data, renderLive, symbol, timeframe]);
+  }, [data, range, renderLive, symbol, timeframe]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -384,11 +383,11 @@ export function ChartPanel({
       // bars) ensures the time scale owns the complete zone range.
       // time scale actually owns those bars and the band visibly stretches.
       const lastTime = data.candles[data.candles.length - 1].time;
-      const toTime = (lastTime + TF_SECONDS[timeframe] * ZONE_EXTEND_BARS) as UTCTimestamp;
+      const toTime = (lastTime + TIMEFRAME_SECONDS[timeframe] * ZONE_EXTEND_BARS) as UTCTimestamp;
       if (toTime <= fromTime) continue;
 
       const barData: { time: UTCTimestamp; value: number }[] = [];
-      for (let t = Number(fromTime); t <= Number(toTime); t += TF_SECONDS[timeframe]) {
+      for (let t = Number(fromTime); t <= Number(toTime); t += TIMEFRAME_SECONDS[timeframe]) {
         barData.push({ time: t as UTCTimestamp, value: zone.top });
       }
       const bottomData = barData.map((p) => ({ time: p.time, value: zone.bottom }));
@@ -488,9 +487,17 @@ export function ChartPanel({
     }
   }, [levels, showTradeLevels]);
 
+  const historyStatus = history.loading
+    ? "Memuat histori…"
+    : history.reachedStart
+      ? "Awal histori pasar tercapai"
+      : history.truncated
+        ? "Batas pemuatan tercapai — geser ke kiri untuk menambah"
+        : "Geser ke kiri untuk histori lebih lama";
+
   return (
     <div className="card flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2.5">
           <span className="text-sm font-bold">{symbol}</span>
           <span className="text-sm font-semibold tabular-nums">
@@ -508,36 +515,68 @@ export function ChartPanel({
             Live
           </span>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
-          {TIMEFRAMES.map((tf) => (
-            <button
-              key={tf}
-              type="button"
-              onClick={() => onTimeframeChange(tf)}
-              className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                timeframe === tf ? "bg-accent/15 text-accent-2" : "text-muted-2 hover:text-foreground"
-              }`}
-            >
-              {tf === "1D" ? "1D Lifetime" : tf}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div
+            className="flex items-center gap-0.5 rounded-lg border border-border bg-background p-0.5"
+            role="group"
+            aria-label="Interval candle"
+          >
+            {TIMEFRAMES.map((tf) => (
+              <button
+                key={tf}
+                type="button"
+                onClick={() => onTimeframeChange(tf)}
+                aria-pressed={timeframe === tf}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                  timeframe === tf ? "bg-accent/15 text-accent-2" : "text-muted-2 hover:text-foreground"
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="flex items-center gap-0.5 rounded-lg border border-border bg-background p-0.5"
+            role="group"
+            aria-label="Rentang histori"
+          >
+            {HISTORY_RANGES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onRangeChange(option)}
+                aria-pressed={range === option}
+                title={HISTORY_RANGE_HINT[option]}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                  range === option
+                    ? "bg-foreground/10 text-foreground"
+                    : "text-muted-2 hover:text-foreground"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="relative h-[420px] w-full">
         <div ref={containerRef} className="h-full w-full" />
+        {history.loading && history.progress && history.progress.totalPages > 1 && (
+          <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-border bg-surface/90 px-3 py-1 text-[10px] font-semibold text-muted shadow-sm backdrop-blur">
+            Memuat histori {history.progress.loadedPages}/{history.progress.totalPages} ·{" "}
+            {history.progress.candles.toLocaleString("id-ID")} candle
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-        <span className="text-[10px] text-muted-2">
-          {historyLoading
-            ? "Memuat histori Binance…"
-            : hasMoreHistory
-              ? "Geser ke kiri untuk histori lebih lama"
-              : "Awal histori Binance tercapai"}
-        </span>
+      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5">
+        <span className="text-[10px] text-muted-2">{historyStatus}</span>
         <span className="hidden text-[10px] text-muted-2 sm:block">
-          {historyDateFormatter.format(data.candles[0].time * 1_000)}–{historyDateFormatter.format(data.candles.at(-1)!.time * 1_000)} · {data.candles.length} bars · kanan: area proyeksi
+          {historyDateFormatter.format(data.candles[0].time * 1_000)}–
+          {historyDateFormatter.format(data.candles.at(-1)!.time * 1_000)} ·{" "}
+          {data.candles.length.toLocaleString("id-ID")} bar · kanan: area proyeksi
         </span>
       </div>
     </div>

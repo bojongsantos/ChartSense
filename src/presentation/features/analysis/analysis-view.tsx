@@ -1,6 +1,8 @@
 "use client";
 
+import type { HistoryRange } from "@/core/application/market-data/history-plan";
 import type { AnalysisResult, Timeframe } from "@/core/domain/models";
+import type { HistoryState } from "@/presentation/hooks/use-live-analysis";
 import { priceDecimals } from "@/shared/lib/format";
 import { AnalysisHeader } from "@/presentation/features/analysis/analysis-header";
 import { ChartPanel } from "@/presentation/features/analysis/chart-panel";
@@ -13,8 +15,9 @@ interface AnalysisViewProps {
   data: AnalysisResult;
   timeframe: Timeframe;
   onTimeframeChange: (tf: Timeframe) => void;
-  historyLoading: boolean;
-  hasMoreHistory: boolean;
+  range: HistoryRange;
+  onRangeChange: (range: HistoryRange) => void;
+  history: HistoryState;
   onLoadMoreHistory: () => Promise<void>;
 }
 
@@ -22,8 +25,9 @@ export function AnalysisView({
   data,
   timeframe,
   onTimeframeChange,
-  historyLoading,
-  hasMoreHistory,
+  range,
+  onRangeChange,
+  history,
   onLoadMoreHistory,
 }: AnalysisViewProps) {
   const precision = priceDecimals(data.pair.price);
@@ -48,8 +52,9 @@ export function AnalysisView({
           change24h={data.pair.change24h}
           pattern={data.pattern}
           levels={data.levels}
-          historyLoading={historyLoading}
-          hasMoreHistory={hasMoreHistory}
+          range={range}
+          onRangeChange={onRangeChange}
+          history={history}
           onLoadMoreHistory={onLoadMoreHistory}
         />
         <PatternCard

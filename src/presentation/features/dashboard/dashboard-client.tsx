@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import type { HistoryRange } from "@/core/application/market-data/history-plan";
 import { isValidBinanceSymbol, mergeSearchableSymbols, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import type { Timeframe } from "@/core/domain/models";
 import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
@@ -20,6 +21,7 @@ export function DashboardClient() {
   const membership = useWatchlistMembership();
   const [symbol, setSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
+  const [range, setRange] = useState<HistoryRange>("3M");
   const [showTop, setShowTop] = useState(false);
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [query, setQuery] = useState("");
@@ -40,15 +42,11 @@ export function DashboardClient() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const {
-    analysis,
-    loading,
-    error,
-    streamStatus,
-    historyLoading,
-    hasMoreHistory,
-    loadMoreHistory,
-  } = useLiveAnalysis(activeSymbol ?? "BTCUSDT", timeframe);
+  const { analysis, loading, error, streamStatus, history, loadMoreHistory } = useLiveAnalysis(
+    activeSymbol ?? "BTCUSDT",
+    timeframe,
+    range,
+  );
 
   const currentTop = top.find((t) => t.hit.symbol === activeSymbol) ?? null;
 
@@ -193,8 +191,9 @@ export function DashboardClient() {
             data={analysis}
             timeframe={timeframe}
             onTimeframeChange={setTimeframe}
-            historyLoading={historyLoading}
-            hasMoreHistory={hasMoreHistory}
+            range={range}
+            onRangeChange={setRange}
+            history={history}
             onLoadMoreHistory={loadMoreHistory}
           />
         )}

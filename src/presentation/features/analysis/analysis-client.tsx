@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import type { HistoryRange } from "@/core/application/market-data/history-plan";
 import type { Timeframe } from "@/core/domain/models";
 import { isValidBinanceSymbol, mergeSearchableSymbols, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
@@ -14,17 +15,14 @@ import { Loader2, RefreshCw } from "lucide-react";
 export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
   const [symbol, setSymbol] = useState<string>(initialSymbol);
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
+  const [range, setRange] = useState<HistoryRange>("3M");
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [query, setQuery] = useState(initialSymbol.replace(/USDT$/, ""));
-  const {
-    analysis,
-    loading,
-    error,
-    streamStatus,
-    historyLoading,
-    hasMoreHistory,
-    loadMoreHistory,
-  } = useLiveAnalysis(symbol, timeframe);
+  const { analysis, loading, error, streamStatus, history, loadMoreHistory } = useLiveAnalysis(
+    symbol,
+    timeframe,
+    range,
+  );
 
   // Keep favorites first while retaining the complete market catalog.
   useEffect(() => {
@@ -119,8 +117,9 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
             data={analysis}
             timeframe={timeframe}
             onTimeframeChange={setTimeframe}
-            historyLoading={historyLoading}
-            hasMoreHistory={hasMoreHistory}
+            range={range}
+            onRangeChange={setRange}
+            history={history}
             onLoadMoreHistory={loadMoreHistory}
           />
         )}

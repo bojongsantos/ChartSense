@@ -2,7 +2,7 @@ import "server-only";
 
 import type { MarketContextPayload } from "@/core/domain/models";
 import { formatCompact } from "@/shared/lib/format";
-import { fetchTicker24h } from "@/infrastructure/market-data/binance-client";
+import { marketData } from "@/infrastructure/market-data/market-data-provider";
 
 const MARKET_TTL_MS = 30_000;
 const EXTERNAL_TIMEOUT_MS = 8_000;
@@ -36,8 +36,8 @@ function fearGreedLabel(value: number): string {
 async function buildPayload(): Promise<MarketContextPayload> {
   const [btcResult, ethResult, fundingResult, oiResult, dominanceResult, fearGreedResult] =
     await Promise.allSettled([
-      fetchTicker24h("BTCUSDT"),
-      fetchTicker24h("ETHUSDT"),
+      marketData.fetchTicker24h("BTCUSDT"),
+      marketData.fetchTicker24h("ETHUSDT"),
       externalJson<{ lastFundingRate?: string }>(
         "https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT",
       ),
@@ -54,7 +54,7 @@ async function buildPayload(): Promise<MarketContextPayload> {
     ]);
 
   if (btcResult.status !== "fulfilled" || ethResult.status !== "fulfilled") {
-    throw new Error("Core Binance ticker data is unavailable");
+    throw new Error("Core exchange ticker data is unavailable");
   }
 
   const btc = btcResult.value;
