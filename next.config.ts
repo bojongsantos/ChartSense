@@ -20,6 +20,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "assets.coincap.io",
+        pathname: "/assets/icons/**",
+      },
+    ],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

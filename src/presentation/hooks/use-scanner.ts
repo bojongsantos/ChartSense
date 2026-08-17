@@ -14,12 +14,12 @@ interface SignalsApiPayload {
   top: TopSetup[];
 }
 
-async function postScan<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const symbols = await fetchEnabledWatchlist();
+async function postScan<T>(path: string, body: Record<string, unknown>, useWatchlist = true): Promise<T> {
+  const symbols = useWatchlist ? await fetchEnabledWatchlist() : undefined;
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, symbols }),
+    body: JSON.stringify({ ...body, ...(symbols ? { symbols } : {}) }),
   });
   const payload = (await response.json()) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error ?? `Request failed (${response.status})`);
@@ -83,7 +83,7 @@ export function useSdScan(enabled = true): {
   const execute = useCallback(async (force: boolean) => {
     setLoading(true);
     try {
-      const payload = await postScan<SignalsApiPayload>("/api/signals", { force });
+      const payload = await postScan<SignalsApiPayload>("/api/signals", { force }, false);
       setResult(payload.result);
       setError(
         payload.result.errors.length
@@ -121,7 +121,7 @@ export function useTopSetups(limit = 5): {
   const execute = useCallback(async (force: boolean) => {
     setLoading(true);
     try {
-      const payload = await postScan<SignalsApiPayload>("/api/signals", { force, limit });
+      const payload = await postScan<SignalsApiPayload>("/api/signals", { force, limit }, false);
       setTop(payload.top);
       setError(null);
     } catch (caught) {

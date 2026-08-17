@@ -6,7 +6,10 @@ import type { SdScanHit } from "@/core/application/scanner/supply-demand-scan-se
 import { usePlan } from "@/presentation/features/access/plan-provider";
 import { useSdScan } from "@/presentation/hooks/use-scanner";
 import { Badge } from "@/presentation/ui/badge";
+import { CoinIcon } from "@/presentation/ui/coin-icon";
 import { LockedOverlay } from "@/presentation/ui/locked-overlay";
+import { WatchlistToggleButton } from "@/presentation/ui/watchlist-toggle-button";
+import type { WatchlistMembership } from "@/presentation/hooks/use-watchlist-membership";
 import { formatCompact } from "@/shared/lib/format";
 
 const FREE_VISIBLE = 3;
@@ -46,11 +49,13 @@ function ZoneRow({
   color,
   maxVol,
   onSelect,
+  membership,
 }: {
   hit: SdScanHit;
   color: string;
   maxVol: number;
   onSelect?: (symbol: string) => void;
+  membership: WatchlistMembership;
 }) {
   return (
     <tr
@@ -62,12 +67,7 @@ function ZoneRow({
     >
       <td className="px-1.5 py-2">
         <div className="flex items-center gap-1.5">
-          <span
-            className="flex size-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-extrabold uppercase"
-            style={{ background: "var(--color-surface-3)", color, border: `1px solid ${color}33` }}
-          >
-            {hit.base.slice(0, 2)}
-          </span>
+          <CoinIcon symbol={hit.symbol} size={24} />
           <span>
             <span className="block text-[11px] font-bold leading-tight transition-colors group-hover:text-accent-2">
               {hit.base}
@@ -96,6 +96,9 @@ function ZoneRow({
           </div>
         </div>
       </td>
+      <td className="px-1.5 py-2 text-right">
+        <WatchlistToggleButton symbol={hit.symbol} membership={membership} nextPath="/" />
+      </td>
     </tr>
   );
 }
@@ -106,12 +109,14 @@ function ZoneCard({
   totalCount,
   tone,
   onSelect,
+  membership,
 }: {
   title: string;
   hits: SdScanHit[];
   totalCount?: number;
   tone: "green" | "red";
   onSelect?: (symbol: string) => void;
+  membership: WatchlistMembership;
 }) {
   const router = useRouter();
   const { canAccess } = usePlan();
@@ -155,11 +160,12 @@ function ZoneCard({
               <th className="px-1.5 py-2 font-semibold">Volume 24H</th>
               <th className="px-1.5 py-2 font-semibold">Status</th>
               <th className="px-1.5 py-2 text-right font-semibold">Confidence</th>
+              <th className="px-1.5 py-2"><span className="sr-only">Watchlist</span></th>
             </tr>
           </thead>
           <tbody>
             {visible.map((hit) => (
-              <ZoneRow key={hit.symbol} hit={hit} color={color} maxVol={maxVol} onSelect={onSelect} />
+              <ZoneRow key={hit.symbol} hit={hit} color={color} maxVol={maxVol} onSelect={onSelect} membership={membership} />
             ))}
           </tbody>
         </table>
@@ -190,7 +196,7 @@ function ZoneCard({
   );
 }
 
-export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) => void }) {
+export function SupplyDemandSection({ onSelect, membership }: { onSelect?: (symbol: string) => void; membership: WatchlistMembership }) {
   const { result, loading, error, lastRun, refresh } = useSdScan();
 
   return (
@@ -225,6 +231,12 @@ export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) 
         </div>
       )}
 
+      {membership.error && (
+        <div className="rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-[12px] text-negative">
+          {membership.error}
+        </div>
+      )}
+
       {loading && !result && (
         <div className="flex h-48 items-center justify-center text-muted-2">
           <Loader2 className="size-5 animate-spin" />
@@ -239,6 +251,7 @@ export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) 
             totalCount={result.demandTotal}
             tone="green"
             onSelect={onSelect}
+            membership={membership}
           />
           <ZoneCard
             title="Supply Zones (Sell)"
@@ -246,6 +259,7 @@ export function SupplyDemandSection({ onSelect }: { onSelect?: (symbol: string) 
             totalCount={result.supplyTotal}
             tone="red"
             onSelect={onSelect}
+            membership={membership}
           />
         </div>
       )}
