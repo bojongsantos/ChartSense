@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LineChart,
   Lock,
-  MessageCircle,
   Star,
 } from "lucide-react";
 import { usePlan } from "@/presentation/features/access/plan-provider";
@@ -19,7 +18,7 @@ import { usePlan } from "@/presentation/features/access/plan-provider";
 interface NavItem {
   id: string;
   label: string;
-  href?: string;
+  href: string;
   icon: typeof LayoutDashboard;
 }
 
@@ -27,11 +26,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
   { id: "signals", label: "Signals", href: "/patterns", icon: Layers },
   { id: "watchlist", label: "Watchlist", href: "/watchlist", icon: Star },
-  { id: "alerts", label: "Alerts", icon: Bell },
-  { id: "history", label: "History", icon: History },
-  { id: "notes", label: "Research Notes", icon: MessageCircle },
-  { id: "pricing", label: "Pricing", href: "/account", icon: CreditCard },
-  { id: "tutorials", label: "Tutorials", icon: BookOpen },
+  { id: "alerts", label: "Alerts", href: "/alerts", icon: Bell },
+  { id: "history", label: "History", href: "/history", icon: History },
+  { id: "pricing", label: "Pricing", href: "/pricing", icon: CreditCard },
+  { id: "tutorials", label: "Tutorials", href: "/tutorials", icon: BookOpen },
 ];
 
 export function Sidebar() {
@@ -53,32 +51,25 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {NAV_ITEMS.map((item) => {
-          const active = item.href ? pathname === item.href : false;
+          const active = pathname === item.href;
           const locked = lockedItems.has(item.id);
-          const className = `group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
-            active
-              ? "bg-accent/10 text-foreground"
-              : item.href
-                ? "text-muted hover:bg-surface-3 hover:text-foreground"
-                : "cursor-default text-muted/70 hover:bg-transparent"
-          }`;
-          const content = (
-            <>
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+                active
+                  ? "bg-accent/10 text-foreground"
+                  : "text-muted hover:bg-surface-3 hover:text-foreground"
+              }`}
+            >
               <item.icon
                 className={`size-4 ${active ? "text-accent-2" : "text-muted-2 group-hover:text-muted"}`}
               />
               <span className="flex-1">{item.label}</span>
               {locked && <Lock className="size-3.5 shrink-0 text-warning" />}
-            </>
-          );
-          return item.href ? (
-            <Link key={item.id} href={item.href} className={className}>
-              {content}
             </Link>
-          ) : (
-            <div key={item.id} className={className} title="Coming soon">
-              {content}
-            </div>
           );
         })}
       </nav>
