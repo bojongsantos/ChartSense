@@ -188,7 +188,7 @@ export function ChartPanel({
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#9a9aab",
         fontSize: 11,
-        attributionLogo: false,
+        attributionLogo: true,
       },
       grid: {
         vertLines: { color: "rgba(255,255,255,0.045)" },
@@ -203,6 +203,7 @@ export function ChartPanel({
         timeVisible: timeframe !== "1D",
         secondsVisible: false,
         rightOffset: 8,
+        fixRightEdge: true,
       },
       crosshair: { mode: CrosshairMode.Normal },
       autoSize: true,
@@ -343,8 +344,8 @@ export function ChartPanel({
       const fromTime = data.candles[fromIdx].time as UTCTimestamp;
 
       // Keep the setup zone close to live price so the chart does not reserve
-      // a large, empty future area.
-      // reference). One data point per bar (including the future bars) so the
+      // a large, empty future area. One data point per bar (including future
+      // bars) ensures the time scale owns the complete zone range.
       // time scale actually owns those bars and the band visibly stretches.
       const lastTime = data.candles[data.candles.length - 1].time;
       const toTime = (lastTime + TF_SECONDS[timeframe] * ZONE_EXTEND_BARS) as UTCTimestamp;

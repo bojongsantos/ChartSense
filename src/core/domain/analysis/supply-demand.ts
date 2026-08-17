@@ -65,6 +65,55 @@ export const TERMINAL_SETUP_STATUSES: SetupStatus[] = [
   "Missed",
 ];
 
+const SWING_RADIUS = 2;
+const SWING_LOOKBACK = 50;
+const STOP_BUFFER_RATIO = 0.001;
+
+/**
+ * Places the protective stop beyond the latest confirmed swing and never
+ * inside the setup zone. Long setups use a swing low; shorts use a swing high.
+ */
+export function findSwingStopLoss(
+  candles: Candle[],
+  direction: SetupDirection,
+  zoneBoundary: number,
+): number {
+  const firstIndex = Math.max(SWING_RADIUS, candles.length - SWING_LOOKBACK);
+  const lastIndex = candles.length - SWING_RADIUS - 1;
+  let swing: number | null = null;
+
+  for (let index = lastIndex; index >= firstIndex; index -= 1) {
+    const pivot = candles[index];
+    const neighbours = candles.slice(index - SWING_RADIUS, index).concat(
+      candles.slice(index + 1, index + SWING_RADIUS + 1),
+    );
+
+    if (direction === "long") {
+      const isSwingLow = neighbours.every((item) => pivot.low <= item.low)
+        && neighbours.some((item) => pivot.low < item.low);
+      if (isSwingLow) {
+        swing = pivot.low;
+        break;
+      }
+    } else {
+      const isSwingHigh = neighbours.every((item) => pivot.high >= item.high)
+        && neighbours.some((item) => pivot.high > item.high);
+      if (isSwingHigh) {
+        swing = pivot.high;
+        break;
+      }
+    }
+  }
+
+  const reference = direction === "long"
+    ? Math.min(swing ?? zoneBoundary, zoneBoundary)
+    : Math.max(swing ?? zoneBoundary, zoneBoundary);
+
+  return direction === "long"
+    ? reference * (1 - STOP_BUFFER_RATIO)
+    : reference * (1 + STOP_BUFFER_RATIO);
+}
+
 /**
  * Supply & Demand detection.
  *
@@ -245,8 +294,13 @@ export function detectSupplyDemand(
   let setup: SdSetup | null = null;
   for (const zone of candidates) {
     const isLong = zone.type === "demand";
+    const direction: SetupDirection = isLong ? "long" : "short";
     const entry = isLong ? zone.top : zone.bottom;
-    const stopLoss = isLong ? zone.bottom * 0.985 : zone.top * 1.015;
+    const stopLoss = findSwingStopLoss(
+      candles,
+      direction,
+      isLong ? zone.bottom : zone.top,
+    );
     // Target 1 = RR 1:1, Target 2 = RR 1:2 (measured from the same risk unit).
     const risk = Math.abs(entry - stopLoss);
     const target1 = isLong ? entry + risk * 1 : entry - risk * 1;
@@ -266,7 +320,7 @@ export function detectSupplyDemand(
         symbol,
         timeframe,
         zoneType: zone.type,
-        direction: isLong ? "long" : "short",
+        direction,
         baseTime: zone.baseTime,
         entry,
         stopLoss,
@@ -287,7 +341,7 @@ export function detectSupplyDemand(
     const riskReward = Math.min(9, Math.max(0.3, rawRr));
 
     setup = {
-      direction: isLong ? "long" : "short",
+      direction,
       zone,
       entry,
       target1,
