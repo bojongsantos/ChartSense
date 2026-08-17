@@ -139,7 +139,8 @@ const TF_SECONDS: Record<Timeframe, number> = {
 /** How many future candles the setup zone extends. */
 const ZONE_EXTEND_BARS = 12;
 
-const historyMonthFormatter = new Intl.DateTimeFormat("id-ID", {
+const historyDateFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "numeric",
   month: "short",
   year: "numeric",
   timeZone: "UTC",
@@ -536,7 +537,7 @@ export function ChartPanel({
               : "Awal histori Binance tercapai"}
         </span>
         <span className="hidden text-[10px] text-muted-2 sm:block">
-          {historyMonthFormatter.format(data.candles[0].time * 1_000)}–{historyMonthFormatter.format(data.candles.at(-1)!.time * 1_000)} · {data.candles.length} bars · kanan: area proyeksi
+          {historyDateFormatter.format(data.candles[0].time * 1_000)}–{historyDateFormatter.format(data.candles.at(-1)!.time * 1_000)} · {data.candles.length} bars · kanan: area proyeksi
         </span>
       </div>
     </div>
