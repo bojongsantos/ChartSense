@@ -84,7 +84,7 @@ export function subscribeBinanceMarket(
   const connect = () => {
     if (stopped) return;
     onStatus("connecting");
-    socket = new WebSocket(`wss://stream.binance.com:443/stream?streams=${streams}`);
+    socket = new WebSocket(`wss://data-stream.binance.vision/stream?streams=${streams}`);
     socket.addEventListener("open", () => onStatus("live"));
     socket.addEventListener("message", (event) => {
       if (stopped || typeof event.data !== "string") return;
