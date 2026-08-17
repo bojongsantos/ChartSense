@@ -1,0 +1,84 @@
+import { getAlertLimit } from "@/core/domain/alerts/alert-rules";
+import { FREE_JOURNAL_LIMIT, PREMIUM_JOURNAL_LIMIT } from "@/core/domain/access/journal";
+import { hasFeature, type FeatureKey } from "@/core/domain/access/gating";
+import {
+  FREE_WATCHLIST_LIMIT,
+  PREMIUM_WATCHLIST_LIMIT,
+} from "@/core/domain/access/watchlist";
+
+export interface PlanCapability {
+  label: string;
+  /** A quantity ("20 simbol") or a plain yes/no. */
+  free: string | boolean;
+  premium: string | boolean;
+  hint?: string;
+}
+
+/**
+ * Buyer-facing wording. `featureLabel` names each feature as it appears inside
+ * the product and stays in English there; a pricing table aimed at Indonesian
+ * readers should not mix the two languages mid-sentence.
+ */
+const CAPABILITY_LABEL: Record<FeatureKey, string> = {
+  entryBreakdown: "Level entry, target, dan invalidasi",
+  convictionDetail: "Rincian conviction score",
+  historicalPerformance: "Rincian performa historis",
+  similarPatterns: "Pola serupa dari histori",
+  scannerExtended: "Daftar peluang scanner penuh",
+  signals: "Signals — setup supply & demand di seluruh watchlist",
+};
+
+/** Yes/no values come from the same gate the server enforces. */
+function forFeature(feature: FeatureKey): PlanCapability {
+  return {
+    label: CAPABILITY_LABEL[feature],
+    free: hasFeature("free", feature),
+    premium: hasFeature("premium", feature),
+  };
+}
+
+/**
+ * The plan comparison shown on the pricing page.
+ *
+ * Every quantity is read from the same constant the server enforces, so the
+ * table cannot drift into advertising a limit the product does not actually
+ * grant.
+ */
+export const PLAN_CAPABILITIES: PlanCapability[] = [
+  {
+    label: "Watchlist tersimpan",
+    free: `${FREE_WATCHLIST_LIMIT} simbol`,
+    premium: `${PREMIUM_WATCHLIST_LIMIT} simbol`,
+  },
+  {
+    label: "Alert harga aktif",
+    free: `${getAlertLimit("free")} alert`,
+    premium: `${getAlertLimit("premium")} alert`,
+    hint: "Dievaluasi di server, tetap berjalan saat browser ditutup.",
+  },
+  {
+    label: "Setup tersimpan di History",
+    free: `${FREE_JOURNAL_LIMIT} setup`,
+    premium: `${PREMIUM_JOURNAL_LIMIT} setup`,
+  },
+  forFeature("entryBreakdown"),
+  forFeature("convictionDetail"),
+  forFeature("historicalPerformance"),
+  forFeature("similarPatterns"),
+  forFeature("scannerExtended"),
+  forFeature("signals"),
+  {
+    label: "Chart lifetime pada semua interval",
+    free: true,
+    premium: true,
+    hint: "Interval dan rentang histori terpisah; ALL tersedia di semua interval.",
+  },
+  {
+    label: "Notifikasi in-app",
+    free: true,
+    premium: true,
+  },
+];
+
+/** Days of access one Premium payment grants. */
+export const PREMIUM_PERIOD_DAYS = 30;
