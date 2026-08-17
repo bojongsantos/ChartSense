@@ -216,8 +216,8 @@ export function ChartPanel({
         borderColor: "#2a2a3d",
         timeVisible: timeframe !== "1D",
         secondsVisible: false,
-        rightOffset: 8,
-        fixRightEdge: true,
+        rightOffset: 12,
+        fixRightEdge: false,
       },
       crosshair: { mode: CrosshairMode.Normal },
       autoSize: true,
@@ -270,9 +270,11 @@ export function ChartPanel({
     chart.timeScale().applyOptions({
       timeVisible: timeframe !== "1D",
       barSpacing: timeframe === "1D" ? 8 : 7,
+      fixLeftEdge: !hasMoreHistory,
+      fixRightEdge: false,
     });
     candles.applyOptions({ priceFormat: { type: "price", precision, minMove: 10 ** -precision } });
-  }, [precision, timeframe]);
+  }, [hasMoreHistory, precision, timeframe]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -528,7 +530,7 @@ export function ChartPanel({
               : "Awal histori Binance tercapai"}
         </span>
         <span className="hidden text-[10px] text-muted-2 sm:block">
-          TradingView Lightweight Charts · {data.candles.length} bars
+          TradingView Lightweight Charts · {data.candles.length} bars · kanan: area proyeksi
         </span>
       </div>
     </div>
