@@ -40,7 +40,15 @@ export function DashboardClient() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const { analysis, loading, error, streamStatus } = useLiveAnalysis(activeSymbol ?? "BTCUSDT", timeframe);
+  const {
+    analysis,
+    loading,
+    error,
+    streamStatus,
+    historyLoading,
+    hasMoreHistory,
+    loadMoreHistory,
+  } = useLiveAnalysis(activeSymbol ?? "BTCUSDT", timeframe);
 
   const currentTop = top.find((t) => t.hit.symbol === activeSymbol) ?? null;
 
@@ -181,7 +189,14 @@ export function DashboardClient() {
         )}
 
         {analysis && (
-          <AnalysisView data={analysis} timeframe={timeframe} onTimeframeChange={setTimeframe} />
+          <AnalysisView
+            data={analysis}
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            historyLoading={historyLoading}
+            hasMoreHistory={hasMoreHistory}
+            onLoadMoreHistory={loadMoreHistory}
+          />
         )}
       </div>
     </AppShell>

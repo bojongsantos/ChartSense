@@ -121,9 +121,12 @@ interface ChartPanelProps {
   change24h: number;
   pattern: PatternSummary;
   levels: TradeLevel[];
+  historyLoading: boolean;
+  hasMoreHistory: boolean;
+  onLoadMoreHistory: () => Promise<void>;
 }
 
-const TIMEFRAMES: Timeframe[] = ["15m"];
+const TIMEFRAMES: Timeframe[] = ["15m", "1H", "4H", "1D"];
 
 /** Seconds per candle for each supported timeframe. */
 const TF_SECONDS: Record<Timeframe, number> = {
@@ -149,6 +152,9 @@ export function ChartPanel({
   change24h,
   pattern,
   levels,
+  historyLoading,
+  hasMoreHistory,
+  onLoadMoreHistory,
 }: ChartPanelProps) {
   const { canAccess } = usePlan();
   const showTradeLevels = canAccess("entryBreakdown");
@@ -163,6 +169,14 @@ export function ChartPanel({
   const fittedKeyRef = useRef<string | null>(null);
   const pendingFitKeyRef = useRef<string | null>(null);
   const visibleRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const historyRequestArmedRef = useRef(true);
+  const loadMoreHistoryRef = useRef(onLoadMoreHistory);
+  const canLoadHistoryRef = useRef(hasMoreHistory && !historyLoading);
+
+  useEffect(() => {
+    loadMoreHistoryRef.current = onLoadMoreHistory;
+    canLoadHistoryRef.current = hasMoreHistory && !historyLoading;
+  }, [hasMoreHistory, historyLoading, onLoadMoreHistory]);
 
   const renderLive = useCallback((candles: Candle[]) => {
     const cs = candleSeriesRef.current;
@@ -226,7 +240,13 @@ export function ChartPanel({
     chartRef.current = chart;
 
     const onVisibleRange = (range: { from: number; to: number } | null) => {
-      if (range) visibleRangeRef.current = { from: range.from, to: range.to };
+      if (!range) return;
+      visibleRangeRef.current = { from: range.from, to: range.to };
+      if (range.from > 20) historyRequestArmedRef.current = true;
+      if (range.from < 5 && historyRequestArmedRef.current && canLoadHistoryRef.current) {
+        historyRequestArmedRef.current = false;
+        void loadMoreHistoryRef.current();
+      }
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRange);
 
@@ -266,6 +286,10 @@ export function ChartPanel({
     // or follow the newest bar when the user is already at the right edge.
     const savedRange = visibleRangeRef.current;
     const prevLen = liveCandlesRef.current.length;
+    const previousFirstTime = liveCandlesRef.current[0]?.time;
+    const prependedBars = previousFirstTime === undefined
+      ? 0
+      : Math.max(0, data.candles.findIndex((candle) => candle.time === previousFirstTime));
 
     liveCandlesRef.current = data.candles;
     renderLive(data.candles);
@@ -298,7 +322,10 @@ export function ChartPanel({
     if (atRightEdge && data.candles.length > prevLen) {
       chart.timeScale().scrollToRealTime();
     } else {
-      chart.timeScale().setVisibleLogicalRange(savedRange);
+      chart.timeScale().setVisibleLogicalRange({
+        from: savedRange.from + prependedBars,
+        to: savedRange.to + prependedBars,
+      });
     }
   }, [data, renderLive, symbol, timeframe]);
 
@@ -493,7 +520,13 @@ export function ChartPanel({
       </div>
 
       <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-        <span className="text-[10px] text-muted-2">Harga live · zona supply & demand otomatis</span>
+        <span className="text-[10px] text-muted-2">
+          {historyLoading
+            ? "Memuat histori Binance…"
+            : hasMoreHistory
+              ? "Geser ke kiri untuk histori lebih lama"
+              : "Awal histori Binance tercapai"}
+        </span>
         <span className="hidden text-[10px] text-muted-2 sm:block">
           TradingView Lightweight Charts · {data.candles.length} bars
         </span>
