@@ -10,11 +10,14 @@ import { AnalysisView } from "@/presentation/features/analysis/analysis-view";
 import { SupplyDemandSection } from "@/presentation/features/dashboard/supply-demand-section";
 import { useLiveAnalysis } from "@/presentation/hooks/use-live-analysis";
 import { useTopSetups } from "@/presentation/hooks/use-scanner";
+import { useWatchlistMembership } from "@/presentation/hooks/use-watchlist-membership";
 import { AppShell } from "@/presentation/layout/app-shell";
+import { WatchlistToggleButton } from "@/presentation/ui/watchlist-toggle-button";
 import { ChevronDown, Loader2, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 
 export function DashboardClient() {
   const { top, loading: topLoading, error: topError } = useTopSetups(5);
+  const membership = useWatchlistMembership();
   const [symbol, setSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
   const [showTop, setShowTop] = useState(false);
@@ -63,7 +66,7 @@ export function DashboardClient() {
     <AppShell analysis={analysis}>
       <div className="flex flex-col gap-4 p-3 sm:p-6">
         {/* Supply & Demand Zones — new top section */}
-        <SupplyDemandSection onSelect={selectFromSection} />
+        <SupplyDemandSection onSelect={selectFromSection} membership={membership} />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -148,6 +151,7 @@ export function DashboardClient() {
                 </div>
               )}
             </div>
+            {activeSymbol && <WatchlistToggleButton symbol={activeSymbol} membership={membership} nextPath="/" />}
           </div>
 
           {loading && (

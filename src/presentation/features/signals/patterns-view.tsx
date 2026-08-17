@@ -13,7 +13,10 @@ import {
 import { useSdScan } from "@/presentation/hooks/use-scanner";
 import type { SdScanHit } from "@/core/application/scanner/supply-demand-scan-service";
 import { Badge } from "@/presentation/ui/badge";
+import { CoinIcon } from "@/presentation/ui/coin-icon";
 import { usePlan } from "@/presentation/features/access/plan-provider";
+import { useWatchlistMembership, type WatchlistMembership } from "@/presentation/hooks/use-watchlist-membership";
+import { WatchlistToggleButton } from "@/presentation/ui/watchlist-toggle-button";
 import { formatCompact } from "@/shared/lib/format";
 
 const STATUS_TONES: Record<string, "warning" | "blue" | "positive" | "negative" | "neutral"> = {
@@ -45,7 +48,7 @@ function VolumeBar({ volume, max }: { volume: number; max: number }) {
   );
 }
 
-function ZoneTable({ title, hits, tone }: { title: string; hits: SdScanHit[]; tone: "green" | "red" }) {
+function ZoneTable({ title, hits, tone, membership }: { title: string; hits: SdScanHit[]; tone: "green" | "red"; membership: WatchlistMembership }) {
   const color = tone === "green" ? "var(--color-positive)" : "var(--color-negative)";
   const Icon = tone === "green" ? TrendingUp : TrendingDown;
   const maxVol = Math.max(1, ...hits.map((h) => h.volume24h));
@@ -95,6 +98,7 @@ function ZoneTable({ title, hits, tone }: { title: string; hits: SdScanHit[]; to
               <th className="px-1.5 py-2 font-semibold">Volume 24H</th>
               <th className="px-1.5 py-2 font-semibold">Status</th>
               <th className="px-1.5 py-2 text-right font-semibold">Confidence</th>
+              <th className="px-1.5 py-2"><span className="sr-only">Watchlist</span></th>
             </tr>
           </thead>
           <tbody>
@@ -106,12 +110,7 @@ function ZoneTable({ title, hits, tone }: { title: string; hits: SdScanHit[]; to
                 >
                   <td className="px-1.5 py-2">
                     <Link href={`/analysis?symbol=${hit.symbol}`} className="flex items-center gap-1.5">
-                      <span
-                        className="flex size-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-extrabold uppercase"
-                        style={{ background: "var(--color-surface-3)", color, border: `1px solid ${color}33` }}
-                      >
-                        {hit.base.slice(0, 2)}
-                      </span>
+                      <CoinIcon symbol={hit.symbol} size={24} />
                       <span>
                         <span className="block text-[11px] font-bold leading-tight transition-colors group-hover:text-accent-2">
                           {hit.base}
@@ -140,12 +139,15 @@ function ZoneTable({ title, hits, tone }: { title: string; hits: SdScanHit[]; to
                       </div>
                     </div>
                   </td>
+                  <td className="px-1.5 py-2 text-right">
+                    <WatchlistToggleButton symbol={hit.symbol} membership={membership} nextPath="/patterns" />
+                  </td>
                 </tr>
               );
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-2.5 py-8 text-center text-[11px] text-muted-2">
+                <td colSpan={5} className="px-2.5 py-8 text-center text-[11px] text-muted-2">
                   Belum ada zona aktif.
                 </td>
               </tr>
@@ -161,6 +163,7 @@ export function PatternsView() {
   const { canAccess } = usePlan();
   const signalsEnabled = canAccess("signals");
   const { result, loading, error, lastRun, refresh } = useSdScan(signalsEnabled);
+  const membership = useWatchlistMembership();
 
   return (
     <div className="flex flex-col gap-5 p-3 sm:p-6">
@@ -171,7 +174,7 @@ export function PatternsView() {
             Signals
           </h2>
           <p className="mt-0.5 text-[12px] text-muted">
-            Zona supply/demand aktif dari scan lintas watchlist (timeframe 15m).
+            Zona supply/demand aktif dari pemindaian pasar (timeframe 15m).
           </p>
         </div>
         <button
@@ -215,6 +218,12 @@ export function PatternsView() {
         </div>
       )}
 
+      {signalsEnabled && membership.error && (
+        <div className="rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-[12px] text-negative">
+          {membership.error}
+        </div>
+      )}
+
       {signalsEnabled && loading && !result && (
         <div className="flex h-64 items-center justify-center text-muted-2">
           <Loader2 className="size-5 animate-spin" />
@@ -223,8 +232,8 @@ export function PatternsView() {
 
       {signalsEnabled && result && (
         <div className="grid items-start gap-4 xl:grid-cols-2">
-          <ZoneTable title="Demand Zones (Buy)" hits={result.demand} tone="green" />
-          <ZoneTable title="Supply Zones (Sell)" hits={result.supply} tone="red" />
+          <ZoneTable title="Demand Zones (Buy)" hits={result.demand} tone="green" membership={membership} />
+          <ZoneTable title="Supply Zones (Sell)" hits={result.supply} tone="red" membership={membership} />
         </div>
       )}
     </div>
