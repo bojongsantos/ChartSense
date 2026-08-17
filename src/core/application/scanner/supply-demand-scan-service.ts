@@ -29,8 +29,10 @@ export interface SdScanHit {
 
 export interface SdMarketSnapshot {
   symbol: string;
+  price: number;
   change24h: number;
   volume24h: number;
+  sparkline: number[];
 }
 
 export interface SdScanResult {
@@ -54,6 +56,7 @@ export async function runSdScan(
   const errors: string[] = [];
   const tickers = await marketData.fetchTickers24h(symbols).catch(() => []);
   const tickerMap = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
+  const sparklineMap = new Map<string, number[]>();
   const demand: SdScanHit[] = [];
   const supply: SdScanHit[] = [];
 
@@ -62,6 +65,7 @@ export async function runSdScan(
     async (symbol) => {
       try {
         const candles = await marketData.fetchKlines(symbol, SD_SCAN_TIMEFRAME, 100);
+        sparklineMap.set(symbol, candles.slice(-96).map((candle) => candle.close));
         const sd: SdResult = detectSupplyDemand(candles, symbol, SD_SCAN_TIMEFRAME);
         if (!sd.setup) return;
 
@@ -110,8 +114,10 @@ export async function runSdScan(
     supply,
     market: tickers.map((ticker) => ({
       symbol: ticker.symbol,
+      price: ticker.lastPrice,
       change24h: ticker.priceChangePercent,
       volume24h: ticker.quoteVolume,
+      sparkline: sparklineMap.get(ticker.symbol) ?? [],
     })),
     demandTotal: demand.length,
     supplyTotal: supply.length,

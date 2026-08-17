@@ -4,6 +4,7 @@ import { INTERVAL_BY_TIMEFRAME } from "@/infrastructure/market-data/binance-clie
 export type BinanceStreamStatus = "connecting" | "live" | "fallback";
 
 export interface BinanceStreamUpdate {
+  symbol: string;
   candle?: Candle;
   ticker?: MarketTicker;
 }
@@ -28,6 +29,7 @@ export function parseBinanceStreamMessage(raw: string): BinanceStreamUpdate | nu
       const volume = number(kline?.v);
       if ([time, open, high, low, close, volume].some((value) => value === null)) return null;
       return {
+        symbol: String(kline?.s ?? data.s ?? ""),
         candle: {
           time: Math.floor(time! / 1000),
           open: open!,
@@ -50,6 +52,7 @@ export function parseBinanceStreamMessage(raw: string): BinanceStreamUpdate | nu
       if ([lastPrice, priceChange, priceChangePercent, highPrice, lowPrice, quoteVolume, volume]
         .some((value) => value === null)) return null;
       return {
+        symbol: String(data.s ?? ""),
         ticker: {
           symbol: String(data.s ?? ""),
           lastPrice: lastPrice!,
@@ -75,11 +78,29 @@ export function subscribeBinanceMarket(
   onUpdate: (update: BinanceStreamUpdate) => void,
   onStatus: (status: BinanceStreamStatus) => void,
 ): () => void {
+  return subscribeBinanceMarkets([symbol], timeframe, onUpdate, onStatus);
+}
+
+export function subscribeBinanceMarkets(
+  symbols: string[],
+  timeframe: Timeframe,
+  onUpdate: (update: BinanceStreamUpdate) => void,
+  onStatus: (status: BinanceStreamStatus) => void,
+): () => void {
   let stopped = false;
   let socket: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
-  const normalized = symbol.toLowerCase();
-  const streams = `${normalized}@kline_${INTERVAL_BY_TIMEFRAME[timeframe]}/${normalized}@ticker`;
+  const normalized = [...new Set(symbols)]
+    .filter((symbol) => /^[A-Z0-9]{4,20}$/.test(symbol))
+    .map((symbol) => symbol.toLowerCase());
+  const streams = normalized
+    .flatMap((symbol) => [`${symbol}@kline_${INTERVAL_BY_TIMEFRAME[timeframe]}`, `${symbol}@ticker`])
+    .join("/");
+
+  if (!streams) {
+    onStatus("fallback");
+    return () => undefined;
+  }
 
   const connect = () => {
     if (stopped) return;

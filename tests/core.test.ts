@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildPerformance, buildSimilarPatterns, emaSeries, rsiSeries } from "@/core/domain/analysis/analysis-engine";
 import {
+  buildRiskTargets,
   computeSetupStatus,
   findSwingStopLoss,
   type SdZone,
@@ -69,6 +70,8 @@ test("protective stops use confirmed swings and remain outside the zone", () => 
   // A swing inside the zone must not pull the protective stop into the zone.
   assert.equal(findSwingStopLoss(longCandles, "long", 93), 93 * 0.999);
   assert.equal(findSwingStopLoss(shortCandles, "short", 107), 107 * 1.001);
+  assert.deepEqual(buildRiskTargets(100, 90, "long"), { target1: 110, target2: 120 });
+  assert.deepEqual(buildRiskTargets(100, 110, "short"), { target1: 90, target2: 80 });
 });
 
 test("setup locks are isolated by symbol and timeframe", () => {
