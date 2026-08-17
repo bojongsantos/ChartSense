@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildPerformance, buildSimilarPatterns, emaSeries, rsiSeries } from "@/core/domain/analysis/analysis-engine";
-import { computeSetupStatus, type SdZone } from "@/core/domain/analysis/supply-demand";
+import {
+  computeSetupStatus,
+  findSwingStopLoss,
+  type SdZone,
+} from "@/core/domain/analysis/supply-demand";
 import type { Candle } from "@/core/domain/models";
 import { setupLockKey } from "@/infrastructure/persistence/browser-setup-lock-store";
 
@@ -39,6 +43,32 @@ test("setup state machine covers long outcomes", () => {
   assert.equal(computeSetupStatus(history(candle(4, 101, 108, 99, 106)), zone, true, 100, 90, 110, 120, 106), "Running");
   assert.equal(computeSetupStatus(history(candle(4, 101, 105, 89, 92)), zone, true, 100, 90, 110, 120, 92), "Invalidated (SL hit)");
   assert.equal(computeSetupStatus(history(candle(4, 101, 121, 99, 119)), zone, true, 100, 90, 110, 120, 119), "Target 2 reached");
+});
+
+test("protective stops use confirmed swings and remain outside the zone", () => {
+  const longCandles = [
+    candle(1, 100, 102, 98, 100),
+    candle(2, 100, 101, 97, 99),
+    candle(3, 99, 100, 94, 96),
+    candle(4, 96, 99, 96, 98),
+    candle(5, 98, 101, 97, 100),
+    candle(6, 100, 102, 98, 101),
+  ];
+  const shortCandles = [
+    candle(1, 100, 102, 98, 100),
+    candle(2, 100, 104, 99, 103),
+    candle(3, 103, 106, 101, 104),
+    candle(4, 104, 105, 100, 101),
+    candle(5, 101, 103, 98, 99),
+    candle(6, 99, 101, 97, 100),
+  ];
+
+  assert.equal(findSwingStopLoss(longCandles, "long", 95), 94 * 0.999);
+  assert.equal(findSwingStopLoss(shortCandles, "short", 105), 106 * 1.001);
+
+  // A swing inside the zone must not pull the protective stop into the zone.
+  assert.equal(findSwingStopLoss(longCandles, "long", 93), 93 * 0.999);
+  assert.equal(findSwingStopLoss(shortCandles, "short", 107), 107 * 1.001);
 });
 
 test("setup locks are isolated by symbol and timeframe", () => {
