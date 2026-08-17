@@ -67,6 +67,14 @@ Alert dievaluasi terhadap harga ticker terkini. Setup dievaluasi terhadap rentan
 
 Rate limit disimpan di memori proses. Pada beberapa instance, batas berlaku per instance, bukan global.
 
+## Environment saat deploy
+
+`vercel deploy` tidak memakai `.gitignore` untuk menyaring berkas yang diunggah. Tanpa `.vercelignore`, berkas `.env` lokal ikut terkirim ke build meskipun git mengabaikannya.
+
+Next.js hanya mengisi variabel yang belum didefinisikan platform. Akibatnya, variabel yang absen pada project Vercel akan diam-diam mewarisi nilai dari mesin pengembang, dan nilai tersebut tidak muncul pada dashboard Vercel sehingga sulit disadari.
+
+Hal ini pernah terjadi pada `CRON_SECRET`: endpoint produksi menerima secret yang dibuat untuk pengembangan lokal. `.vercelignore` menutup celah tersebut. Setiap variabel yang diperlukan produksi harus didefinisikan pada project Vercel, bukan mengandalkan berkas lokal.
+
 ## Sumber data pasar
 
 Binance menjadi provider utama karena menyediakan websocket publik untuk data realtime. Bybit menjadi cadangan melalui `MarketDataPort` yang sama. Provider yang gagal dijeda selama enam puluh detik lalu dicoba kembali. Keduanya publik dan tidak memerlukan API key.

@@ -1,0 +1,16 @@
+# Files excluded from a `vercel deploy` upload.
+#
+# Vercel does not use .gitignore to filter this upload, so local env files
+# reach the build even though git ignores them. Next.js only fills variables
+# the platform has not already defined, which means any value missing from the
+# Vercel project silently inherits the developer's local one — and it never
+# appears in the Vercel dashboard, so nobody can tell.
+.env
+.env.*
+!.env.example
+
+# Build and tooling output that the platform regenerates itself.
+.next
+node_modules
+coverage
+*.tsbuildinfo
