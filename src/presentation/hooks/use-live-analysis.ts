@@ -10,7 +10,7 @@ import {
 } from "@/infrastructure/market-data/binance-stream-client";
 import { browserSetupLockStore } from "@/infrastructure/persistence/browser-setup-lock-store";
 
-export const FALLBACK_POLL_MS = 15_000;
+export const FALLBACK_POLL_MS = 4_000;
 
 function mergeCandles(previous: Candle[], latest: Candle[]): Candle[] {
   if (latest.length === 0) return previous;
