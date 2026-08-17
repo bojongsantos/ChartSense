@@ -14,7 +14,7 @@ import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-cata
 import { Badge } from "@/presentation/ui/badge";
 import { CoinIcon } from "@/presentation/ui/coin-icon";
 import { Sparkline } from "@/presentation/ui/sparkline";
-import { formatCompact, formatPrice, priceDecimals } from "@/shared/lib/format";
+import { formatCompact } from "@/shared/lib/format";
 
 interface WatchlistItem {
   id: string;
@@ -36,6 +36,8 @@ const STATUS_TONES: Record<string, "warning" | "blue" | "positive" | "negative" 
   "Invalidated (SL hit)": "negative",
   Missed: "neutral",
 };
+
+const PAGE_SIZE = 20;
 
 function statusTone(status?: string) {
   return STATUS_TONES[status ?? ""] ?? "neutral";
@@ -71,73 +73,6 @@ function Confidence({ signal }: { signal?: SdScanHit }) {
   );
 }
 
-function LiveTrendTable({
-  items,
-  marketBySymbol,
-  streamStatus,
-}: {
-  items: WatchlistItem[];
-  marketBySymbol: Map<string, SdMarketSnapshot>;
-  streamStatus: BinanceStreamStatus;
-}) {
-  if (items.length === 0) return null;
-  return (
-    <section className="card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div>
-          <h2 className="text-sm font-bold">Pergerakan Market Realtime</h2>
-          <p className="mt-0.5 text-[10px] text-muted">Candle 15 menit · histori 24 jam dari Binance</p>
-        </div>
-        <Badge tone={streamStatus === "live" ? "positive" : "warning"}>
-          {streamStatus === "live" ? "Realtime" : "Menghubungkan"}
-        </Badge>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left text-xs">
-          <thead className="bg-surface-2/50 text-[10px] uppercase tracking-wide text-muted-2">
-            <tr>
-              <th className="px-4 py-3">Pair</th>
-              <th className="px-4 py-3">Harga</th>
-              <th className="px-4 py-3">24H</th>
-              <th className="px-4 py-3">Grafik 24H</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => {
-              const market = marketBySymbol.get(item.symbol);
-              const change = market?.change24h ?? 0;
-              const color = change >= 0 ? "var(--color-positive)" : "var(--color-negative)";
-              return (
-                <tr key={item.id} className="border-t border-border/60">
-                  <td className="px-4 py-3">
-                    <Link href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`} className="flex items-center gap-2.5 font-bold hover:text-accent-2">
-                      <CoinIcon symbol={item.symbol} size={28} />
-                      {item.symbol.replace(/USDT$/, "")}<span className="font-medium text-muted-2">/USDT</span>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 font-semibold tabular-nums">
-                    {market ? `$${formatPrice(market.price, priceDecimals(market.price))}` : "—"}
-                  </td>
-                  <td className={`px-4 py-3 font-bold tabular-nums ${change >= 0 ? "text-positive" : "text-negative"}`}>
-                    {market ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—"}
-                  </td>
-                  <td className="px-4 py-2">
-                    {market?.sparkline.length ? (
-                      <Sparkline data={market.sparkline} width={180} height={38} stroke={color} fill={false} />
-                    ) : (
-                      <span className="text-muted-2">Memuat grafik…</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 function WatchlistCard({
   item,
   market,
@@ -155,17 +90,19 @@ function WatchlistCard({
 }) {
   const base = item.symbol.replace(/USDT$/, "");
   const change = market?.change24h;
+  const trendColor = (change ?? 0) >= 0 ? "var(--color-positive)" : "var(--color-negative)";
 
   return (
     <article className="card overflow-hidden">
-      <div className="hidden grid-cols-[minmax(180px,1.35fr)_minmax(150px,1fr)_minmax(130px,.9fr)_minmax(140px,.8fr)_68px] border-b border-border/60 bg-surface-2/40 text-[10px] font-semibold uppercase tracking-wide text-muted-2 md:grid">
+      <div className="hidden grid-cols-[minmax(180px,1.25fr)_minmax(140px,.9fr)_minmax(150px,.9fr)_minmax(120px,.75fr)_minmax(130px,.75fr)_68px] border-b border-border/60 bg-surface-2/40 text-[10px] font-semibold uppercase tracking-wide text-muted-2 md:grid">
         <span className="px-5 py-3">Pair</span>
         <span className="px-5 py-3">Volume 24H</span>
+        <span className="px-5 py-3">Grafik 24H</span>
         <span className="px-5 py-3">Status</span>
         <span className="px-5 py-3">Confidence</span>
         <span className="sr-only">Aksi</span>
       </div>
-      <div className="grid gap-4 p-4 md:grid-cols-[minmax(180px,1.35fr)_minmax(150px,1fr)_minmax(130px,.9fr)_minmax(140px,.8fr)_68px] md:items-center md:gap-0 md:p-0">
+      <div className="grid gap-4 p-4 md:grid-cols-[minmax(180px,1.25fr)_minmax(140px,.9fr)_minmax(150px,.9fr)_minmax(120px,.75fr)_minmax(130px,.75fr)_68px] md:items-center md:gap-0 md:p-0">
         <Link href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`} className="flex items-center gap-3 md:px-5 md:py-5">
           <CoinIcon symbol={item.symbol} size={38} />
           <span>
@@ -181,6 +118,14 @@ function WatchlistCard({
         <div className="flex items-center justify-between md:block md:px-5 md:py-5">
           <span className="text-[10px] font-semibold uppercase text-muted-2 md:hidden">Volume 24H</span>
           <VolumeBar volume={market?.volume24h} max={maxVolume} />
+        </div>
+        <div className="flex items-center justify-between md:px-5 md:py-3">
+          <span className="text-[10px] font-semibold uppercase text-muted-2 md:hidden">Grafik 24H</span>
+          {market?.sparkline.length ? (
+            <Sparkline data={market.sparkline} width={150} height={38} stroke={trendColor} fill={false} />
+          ) : (
+            <span className="text-xs text-muted-2">Memuat grafik…</span>
+          )}
         </div>
         <div className="flex items-center justify-between md:block md:px-5 md:py-5">
           <span className="text-[10px] font-semibold uppercase text-muted-2 md:hidden">Status</span>
@@ -220,6 +165,7 @@ export function WatchlistModule() {
   const [error, setError] = useState<string | null>(null);
   const [scan, setScan] = useState<SdScanResult | null>(null);
   const [marketStreamStatus, setMarketStreamStatus] = useState<BinanceStreamStatus>("connecting");
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     const [response, symbols] = await Promise.all([
@@ -338,6 +284,7 @@ export function WatchlistModule() {
     }
     setItems((current) => [...current, payload.item!]);
     setDraft("");
+    setPage(1);
     setError(null);
   }
 
@@ -363,6 +310,9 @@ export function WatchlistModule() {
   const searchResults = filterSearchableSymbols(catalog, draft);
   const visibleSymbols = new Set(filterSearchableSymbols(items.map((item) => item.symbol), draft, [], items.length));
   const visibleItems = draft.trim() ? items.filter((item) => visibleSymbols.has(item.symbol)) : items;
+  const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedItems = visibleItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const selectedSymbol = draft.trim() ? normalizeUsdtSymbol(draft) : "";
   const canAdd = catalog.includes(selectedSymbol) && !itemSymbols.has(selectedSymbol) && items.length < limit;
 
@@ -376,7 +326,13 @@ export function WatchlistModule() {
               {unauthorized ? "Login untuk membuat watchlist pribadi." : `${items.length} dari ${limit} coin dipantau.`}
             </p>
           </div>
-          {marketLoading && <span className="inline-flex items-center gap-2 text-xs text-muted"><Loader2 className="size-3.5 animate-spin" /> Memuat market data</span>}
+          {marketLoading ? (
+            <span className="inline-flex items-center gap-2 text-xs text-muted"><Loader2 className="size-3.5 animate-spin" /> Memuat market data</span>
+          ) : items.length > 0 ? (
+            <Badge tone={marketStreamStatus === "live" ? "positive" : "warning"}>
+              {marketStreamStatus === "live" ? "Realtime" : "Menghubungkan"}
+            </Badge>
+          ) : null}
         </div>
 
         {!unauthorized && (
@@ -384,7 +340,7 @@ export function WatchlistModule() {
             <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-2" />
             <input
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => { setDraft(event.target.value); setPage(1); }}
               onKeyDown={(event) => event.key === "Enter" && canAdd && void add()}
               placeholder="Cari coin di watchlist atau market..."
               role="combobox"
@@ -433,12 +389,6 @@ export function WatchlistModule() {
 
       {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
 
-      <LiveTrendTable
-        items={visibleItems}
-        marketBySymbol={marketBySymbol}
-        streamStatus={marketStreamStatus}
-      />
-
       <div className="flex flex-col gap-5">
         {items.length === 0 && (
           <div className="card flex flex-col items-center px-6 py-12 text-center">
@@ -449,9 +399,16 @@ export function WatchlistModule() {
           </div>
         )}
         {items.length > 0 && visibleItems.length === 0 && <div className="card p-8 text-center text-sm text-muted">Coin tidak ada di watchlist. Tambahkan melalui hasil pencarian market.</div>}
-        {visibleItems.map((item) => (
+        {pagedItems.map((item) => (
           <WatchlistCard key={item.id} item={item} market={marketBySymbol.get(item.symbol)} signal={signalBySymbol.get(item.symbol)} maxVolume={maxVolume} preview={unauthorized} onRemove={(id) => void remove(id)} />
         ))}
+        {visibleItems.length > PAGE_SIZE && (
+          <nav aria-label="Pagination watchlist" className="flex items-center justify-center gap-3 pb-2">
+            <button type="button" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold disabled:opacity-40">Sebelumnya</button>
+            <span className="text-xs text-muted">Halaman {currentPage} dari {totalPages}</span>
+            <button type="button" disabled={currentPage === totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold disabled:opacity-40">Berikutnya</button>
+          </nav>
+        )}
       </div>
     </div>
   );

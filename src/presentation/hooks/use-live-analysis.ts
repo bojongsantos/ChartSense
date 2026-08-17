@@ -52,8 +52,10 @@ export function useLiveAnalysis(
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const candlesRef = useRef<Candle[]>([]);
   const tickerRef = useRef<MarketTicker | null>(null);
-  const loadMoreRef = useRef<() => Promise<void>>(async () => undefined);
-  const loadMoreHistory = useCallback(() => loadMoreRef.current(), []);
+  const loadMoreRef = useRef<() => Promise<boolean>>(async () => false);
+  const loadMoreHistory = useCallback(async () => {
+    await loadMoreRef.current();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +131,7 @@ export function useLiveAnalysis(
 
     loadMoreRef.current = async () => {
       const oldest = candlesRef.current[0];
-      if (!oldest || loadingOlder || !canLoadMore || cancelled) return;
+      if (!oldest || loadingOlder || !canLoadMore || cancelled) return false;
       loadingOlder = true;
       setHistoryLoading(true);
       historyController = new AbortController();
@@ -141,23 +143,31 @@ export function useLiveAnalysis(
           historyController.signal,
           oldest.time * 1_000 - 1,
         );
-        if (cancelled) return;
+        if (cancelled) return false;
         candlesRef.current = prependCandleHistory(candlesRef.current, older);
         canLoadMore = older.length === HISTORY_PAGE_SIZE;
         setHasMoreHistory(canLoadMore);
         publish();
+        return canLoadMore;
       } catch (caught) {
         if (!cancelled && !historyController.signal.aborted) {
           setError(caught instanceof Error ? caught.message : String(caught));
         }
+        return false;
       } finally {
         loadingOlder = false;
         if (!cancelled) setHistoryLoading(false);
       }
     };
 
-    void load(true).then(() => {
+    void load(true).then(async () => {
       if (cancelled || candlesRef.current.length === 0) return;
+      if (timeframe === "1D") {
+        while (!cancelled && await loadMoreRef.current()) {
+          // Daily lifetime needs only a few Binance pages, unlike 15m history.
+        }
+      }
+      if (cancelled) return;
       unsubscribe = subscribeBinanceMarket(
         symbol,
         timeframe,
@@ -178,7 +188,7 @@ export function useLiveAnalysis(
       historyController?.abort();
       unsubscribe?.();
       if (timer) clearInterval(timer);
-      loadMoreRef.current = async () => undefined;
+      loadMoreRef.current = async () => false;
     };
   }, [symbol, timeframe]);
 

@@ -139,6 +139,12 @@ const TF_SECONDS: Record<Timeframe, number> = {
 /** How many future candles the setup zone extends. */
 const ZONE_EXTEND_BARS = 12;
 
+const historyMonthFormatter = new Intl.DateTimeFormat("id-ID", {
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
 const upColor = "#089981";
 const downColor = "#f23645";
 
@@ -511,7 +517,7 @@ export function ChartPanel({
                 timeframe === tf ? "bg-accent/15 text-accent-2" : "text-muted-2 hover:text-foreground"
               }`}
             >
-              {tf}
+              {tf === "1D" ? "1D Lifetime" : tf}
             </button>
           ))}
         </div>
@@ -530,7 +536,7 @@ export function ChartPanel({
               : "Awal histori Binance tercapai"}
         </span>
         <span className="hidden text-[10px] text-muted-2 sm:block">
-          TradingView Lightweight Charts · {data.candles.length} bars · kanan: area proyeksi
+          {historyMonthFormatter.format(data.candles[0].time * 1_000)}–{historyMonthFormatter.format(data.candles.at(-1)!.time * 1_000)} · {data.candles.length} bars · kanan: area proyeksi
         </span>
       </div>
     </div>
