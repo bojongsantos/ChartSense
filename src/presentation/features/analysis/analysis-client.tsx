@@ -16,7 +16,7 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [query, setQuery] = useState(initialSymbol.replace(/USDT$/, ""));
-  const { analysis, loading, error } = useLiveAnalysis(symbol, timeframe);
+  const { analysis, loading, error, streamStatus } = useLiveAnalysis(symbol, timeframe);
 
   // Keep favorites first while retaining the complete market catalog.
   useEffect(() => {
@@ -89,7 +89,7 @@ export function AnalysisClient({ initialSymbol }: { initialSymbol: string }) {
           {!loading && analysis && (
             <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-2">
               <RefreshCw className="size-3.5" />
-              Live · auto-refresh 4s
+              {streamStatus === "live" ? "Live · realtime stream" : "Live · reconnecting"}
             </span>
           )}
         </div>
