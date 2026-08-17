@@ -114,6 +114,17 @@ export function findSwingStopLoss(
     : reference * (1 + STOP_BUFFER_RATIO);
 }
 
+export function buildRiskTargets(
+  entry: number,
+  stopLoss: number,
+  direction: SetupDirection,
+): { target1: number; target2: number } {
+  const risk = Math.abs(entry - stopLoss);
+  return direction === "long"
+    ? { target1: entry + risk, target2: entry + risk * 2 }
+    : { target1: entry - risk, target2: entry - risk * 2 };
+}
+
 /**
  * Supply & Demand detection.
  *
@@ -301,10 +312,7 @@ export function detectSupplyDemand(
       direction,
       isLong ? zone.bottom : zone.top,
     );
-    // Target 1 = RR 1:1, Target 2 = RR 1:2 (measured from the same risk unit).
-    const risk = Math.abs(entry - stopLoss);
-    const target1 = isLong ? entry + risk * 1 : entry - risk * 1;
-    const target2 = isLong ? entry + risk * 2 : entry - risk * 2;
+    const { target1, target2 } = buildRiskTargets(entry, stopLoss, direction);
 
     const status = computeSetupStatus(candles, zone, isLong, entry, stopLoss, target1, target2, price);
     if (TERMINAL_SETUP_STATUSES.includes(status as SetupStatus)) {
@@ -353,7 +361,7 @@ export function detectSupplyDemand(
       reasoning: [
         `Zona ${zone.type === "demand" ? "demand" : "supply"} yang ${zone.strength === "fresh" ? "baru" : zone.strength === "tested" ? "teruji" : "rusak"} berada di rentang ${formatPrice(zone.bottom)} hingga ${formatPrice(zone.top)} dengan ${zone.touches} sentuhan.`,
         `Harga saat ini ${zone.active ? "berada di dalam" : "mendekati"} zona, sehingga ${isLong ? "beli" : "jual"} dilakukan di ${isLong ? "atas zona" : "bawah zona"} pada harga ${formatPrice(entry)}.`,
-        `Target pertama di ${formatPrice(target1)} dengan rasio 1:1 dan target kedua di ${formatPrice(target2)} dengan rasio 1:2, sedangkan invalidation berada di ${formatPrice(stopLoss)}.`,
+        `Stop loss berada di luar swing ${isLong ? "low" : "high"} terakhir pada ${formatPrice(stopLoss)}. Target pertama ${formatPrice(target1)} memakai rasio 1:1 dan target kedua ${formatPrice(target2)} memakai rasio 1:2.`,
       ],
       lockedSnapshot,
       runningSince,
