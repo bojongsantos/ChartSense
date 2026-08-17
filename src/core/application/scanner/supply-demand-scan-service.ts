@@ -27,9 +27,16 @@ export interface SdScanHit {
   setupScore: number;
 }
 
+export interface SdMarketSnapshot {
+  symbol: string;
+  change24h: number;
+  volume24h: number;
+}
+
 export interface SdScanResult {
   demand: SdScanHit[];
   supply: SdScanHit[];
+  market: SdMarketSnapshot[];
   demandTotal: number;
   supplyTotal: number;
   scannedAt: string;
@@ -101,6 +108,11 @@ export async function runSdScan(
   return {
     demand,
     supply,
+    market: tickers.map((ticker) => ({
+      symbol: ticker.symbol,
+      change24h: ticker.priceChangePercent,
+      volume24h: ticker.quoteVolume,
+    })),
     demandTotal: demand.length,
     supplyTotal: supply.length,
     scannedAt: new Date().toISOString(),
