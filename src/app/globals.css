@@ -32,6 +32,36 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  color: var(--color-foreground);
+}
+
+/*
+ * One focus ring for the whole app. Drawn with box-shadow rather than outline
+ * so the many `focus:outline-none` utilities in components cannot suppress it —
+ * keyboard users keep a visible focus target everywhere.
+ */
+:is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  box-shadow:
+    0 0 0 2px var(--color-background),
+    0 0 0 4px var(--color-accent-2);
+  border-radius: 0.5rem;
+}
+
+/* Respect users who ask the system to limit motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 ::-webkit-scrollbar {
