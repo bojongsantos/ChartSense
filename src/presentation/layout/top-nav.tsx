@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronDown, Search, LineChart, LogIn, LogOut, Settings, UserPlus } from "lucide-react";
+import { ChevronDown, Search, LineChart, LogIn, LogOut, Settings, UserPlus } from "lucide-react";
 import { isValidBinanceSymbol, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
 import type { CurrentUserDto } from "@/core/domain/identity";
+import { NotificationBell } from "@/presentation/features/notifications/notification-bell";
 
 export function TopNav() {
   const router = useRouter();
@@ -99,15 +100,7 @@ export function TopNav() {
       </form>
 
       <div className="ml-auto flex items-center gap-3">
-        <button
-          type="button"
-          disabled
-          title="Notifications belum tersedia"
-          className="relative cursor-not-allowed rounded-lg border border-border bg-surface-3 p-2 text-muted opacity-60"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4" />
-        </button>
+        <NotificationBell authenticated={currentUser !== null} />
 
         {!userResolved ? (
           <div className="h-9 w-28 animate-pulse rounded-lg border border-border bg-surface-3" aria-label="Memuat sesi" />
