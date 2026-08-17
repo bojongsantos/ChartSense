@@ -134,10 +134,10 @@ const TF_SECONDS: Record<Timeframe, number> = {
 };
 
 /** How many future candles the setup zone extends. */
-const ZONE_EXTEND_BARS = 50;
+const ZONE_EXTEND_BARS = 12;
 
-const upColor = "#22c55e";
-const downColor = "#f43f5e";
+const upColor = "#089981";
+const downColor = "#f23645";
 
 export function ChartPanel({
   data,
@@ -194,8 +194,16 @@ export function ChartPanel({
         vertLines: { color: "rgba(255,255,255,0.045)" },
         horzLines: { color: "rgba(255,255,255,0.045)" },
       },
-      rightPriceScale: { borderColor: "#2a2a3d" },
-      timeScale: { borderColor: "#2a2a3d", timeVisible: timeframe !== "1D", secondsVisible: false },
+      rightPriceScale: {
+        borderColor: "#2a2a3d",
+        scaleMargins: { top: 0.08, bottom: 0.1 },
+      },
+      timeScale: {
+        borderColor: "#2a2a3d",
+        timeVisible: timeframe !== "1D",
+        secondsVisible: false,
+        rightOffset: 8,
+      },
       crosshair: { mode: CrosshairMode.Normal },
       autoSize: true,
     });
@@ -208,6 +216,7 @@ export function ChartPanel({
       borderVisible: false,
       priceLineColor: "#4f7cff",
       priceLineStyle: 3,
+      priceFormat: { type: "price", precision, minMove: 10 ** -precision },
     });
     candleSeriesRef.current = candles;
 
@@ -235,12 +244,14 @@ export function ChartPanel({
 
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
+    const candles = candleSeriesRef.current;
+    if (!chart || !candles) return;
     chart.timeScale().applyOptions({
       timeVisible: timeframe !== "1D",
-      barSpacing: timeframe === "1D" ? 7 : 5,
+      barSpacing: timeframe === "1D" ? 8 : 7,
     });
-  }, [timeframe]);
+    candles.applyOptions({ priceFormat: { type: "price", precision, minMove: 10 ** -precision } });
+  }, [precision, timeframe]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -331,7 +342,8 @@ export function ChartPanel({
       const fromIdx = baseIdx >= 0 ? Math.max(0, baseIdx - 2) : 0;
       const fromTime = data.candles[fromIdx].time as UTCTimestamp;
 
-      // Setup zone extends 50 future candles past the last bar (limit-order
+      // Keep the setup zone close to live price so the chart does not reserve
+      // a large, empty future area.
       // reference). One data point per bar (including the future bars) so the
       // time scale actually owns those bars and the band visibly stretches.
       const lastTime = data.candles[data.candles.length - 1].time;
@@ -411,8 +423,8 @@ export function ChartPanel({
     if (pendingFitKeyRef.current) {
       pendingFitKeyRef.current = null;
       const lastIdx = data.candles.length - 1;
-      const visibleLen = Math.round(chart.timeScale().width() / 5); // ~barSpacing 5
-      const from = Math.max(0, lastIdx - Math.round(visibleLen * 0.6));
+      const visibleLen = Math.round(chart.timeScale().width() / 7);
+      const from = Math.max(0, lastIdx - Math.round(visibleLen * 0.82));
       chart.timeScale().setVisibleLogicalRange({ from, to: lastIdx + ZONE_EXTEND_BARS });
     }
   }, [data, pattern, timeframe]);

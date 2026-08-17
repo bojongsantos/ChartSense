@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Crown, Eye, Loader2, LockKeyhole, Plus, Trash2 } from "lucide-react";
-import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import { Crown, Eye, Loader2, LockKeyhole, Plus, Search, Trash2 } from "lucide-react";
 import type { SdMarketSnapshot, SdScanHit, SdScanResult } from "@/core/application/scanner/supply-demand-scan-service";
+import { filterSearchableSymbols, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
+import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
 import { Badge } from "@/presentation/ui/badge";
 import { CoinIcon } from "@/presentation/ui/coin-icon";
 import { formatCompact } from "@/shared/lib/format";
@@ -142,29 +143,30 @@ export function WatchlistModule() {
   const [showAdd, setShowAdd] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [plan, setPlan] = useState<"FREE" | "PREMIUM" | null>(null);
+  const [limit, setLimit] = useState(20);
+  const [catalog, setCatalog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [scan, setScan] = useState<SdScanResult | null>(null);
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/watchlist", { cache: "no-store" });
+    const [response, symbols] = await Promise.all([
+      fetch("/api/watchlist", { cache: "no-store" }),
+      fetchSearchableSymbols(),
+    ]);
+    setCatalog(symbols);
     setLoading(false);
     if (response.status === 401) {
       setUnauthorized(true);
-      setItems(DEFAULT_WATCHLIST.slice(0, 10).map((symbol, position) => ({
-        id: `preview-${symbol}`,
-        symbol,
-        enabled: true,
-        position,
-      })));
       return;
     }
-    const payload = await response.json() as { items?: WatchlistItem[]; plan?: "FREE" | "PREMIUM"; error?: { message?: string } };
+    const payload = await response.json() as { items?: WatchlistItem[]; plan?: "FREE" | "PREMIUM"; limit?: number; error?: { message?: string } };
     if (!response.ok) {
       setError(payload.error?.message ?? "Watchlist gagal dimuat.");
       return;
     }
     setItems(payload.items ?? []);
     setPlan(payload.plan ?? "FREE");
+    setLimit(payload.limit ?? 20);
   }, []);
 
   useEffect(() => {
@@ -195,8 +197,9 @@ export function WatchlistModule() {
   }, [symbolKey]);
 
   async function add() {
-    const symbol = draft.trim().toUpperCase();
-    if (!/^[A-Z0-9]{4,20}$/.test(symbol)) return;
+    if (!draft.trim()) return;
+    const symbol = normalizeUsdtSymbol(draft);
+    if (!catalog.includes(symbol) || items.some((item) => item.symbol === symbol)) return;
     const response = await fetch("/api/watchlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -232,7 +235,9 @@ export function WatchlistModule() {
   if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="size-5 animate-spin text-muted" /></div>;
 
   const itemSymbols = new Set(items.map((item) => item.symbol));
-  const lockedSymbols = plan === "FREE" ? DEFAULT_WATCHLIST.filter((symbol) => !itemSymbols.has(symbol)) : [];
+  const searchResults = filterSearchableSymbols(catalog, draft, itemSymbols);
+  const selectedSymbol = draft.trim() ? normalizeUsdtSymbol(draft) : "";
+  const canAdd = catalog.includes(selectedSymbol) && !itemSymbols.has(selectedSymbol) && items.length < limit;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -241,7 +246,7 @@ export function WatchlistModule() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Watchlist</h1>
             <p className="mt-2 text-xs text-muted">
-              {unauthorized ? "Pratinjau publik. Login untuk membuat watchlist pribadi." : `${items.length} coin dipantau.${lockedSymbols.length ? ` ${lockedSymbols.length} coin Premium terkunci.` : ""}`}
+              {unauthorized ? "Login untuk membuat watchlist pribadi." : `${items.length} dari ${limit} coin dipantau.`}
             </p>
           </div>
           {marketLoading && <span className="inline-flex items-center gap-2 text-xs text-muted"><Loader2 className="size-3.5 animate-spin" /> Memuat market data</span>}
@@ -253,9 +258,38 @@ export function WatchlistModule() {
               <Plus className="size-4" /> Add Watchlist
             </button>
             {showAdd && (
-              <div className="mt-3 flex max-w-xl gap-2">
-                <input autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void add()} placeholder="BTCUSDT" className="min-w-0 flex-1 rounded-lg border border-border bg-surface-3 px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" />
-                <button type="button" onClick={() => void add()} disabled={!/^[A-Z0-9]{4,20}$/.test(draft.trim())} className="rounded-lg bg-accent px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Tambah</button>
+              <div className="mt-3 flex max-w-xl items-start gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-2" />
+                  <input
+                    autoFocus
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => event.key === "Enter" && canAdd && void add()}
+                    placeholder="Cari BTC, ETH, PNUT..."
+                    role="combobox"
+                    aria-expanded={searchResults.length > 0}
+                    aria-controls="watchlist-search-results"
+                    className="w-full rounded-lg border border-border bg-surface-3 py-2.5 pl-10 pr-3 text-sm focus:border-accent/50 focus:outline-none"
+                  />
+                  {draft.trim() && (
+                    <div id="watchlist-search-results" className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl">
+                      {searchResults.map((symbol) => (
+                        <button
+                          key={symbol}
+                          type="button"
+                          onClick={() => setDraft(symbol.replace(/USDT$/, ""))}
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-3"
+                        >
+                          <CoinIcon symbol={symbol} size={28} />
+                          <span className="text-sm font-bold">{symbol.replace(/USDT$/, "")}<span className="font-medium text-muted-2">/USDT</span></span>
+                        </button>
+                      ))}
+                      {searchResults.length === 0 && !canAdd && <p className="px-3 py-3 text-xs text-muted">Coin tidak ditemukan atau sudah ada di watchlist.</p>}
+                    </div>
+                  )}
+                </div>
+                <button type="button" onClick={() => void add()} disabled={!canAdd} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">Tambah</button>
               </div>
             )}
           </div>
@@ -269,9 +303,9 @@ export function WatchlistModule() {
         </div>
       )}
 
-      {lockedSymbols.length > 0 && (
+      {plan === "FREE" && (
         <div className="flex flex-col gap-3 rounded-xl border border-accent/25 bg-accent/10 p-4 sm:flex-row sm:items-center">
-          <div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Crown className="size-4" /></span><div><p className="text-sm font-bold">Buka seluruh 200 coin</p><p className="mt-1 text-xs text-muted">Paket Free mencakup 20 coin. Upgrade Premium untuk membuka sisanya.</p></div></div>
+          <div className="flex items-start gap-3"><span className="rounded-lg bg-accent/15 p-2 text-accent-2"><Crown className="size-4" /></span><div><p className="text-sm font-bold">Kapasitas watchlist</p><p className="mt-1 text-xs text-muted">Free dapat menyimpan 20 coin. Premium dapat menyimpan hingga 200 coin.</p></div></div>
           <Link href="/account" className="rounded-lg bg-gradient-to-r from-accent to-accent-blue px-4 py-2 text-center text-xs font-bold text-white sm:ml-auto">Upgrade Premium</Link>
         </div>
       )}
@@ -279,16 +313,16 @@ export function WatchlistModule() {
       {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
 
       <div className="flex flex-col gap-5">
-        {items.length === 0 && lockedSymbols.length === 0 && <div className="card p-8 text-center text-sm text-muted">Watchlist masih kosong.</div>}
+        {items.length === 0 && (
+          <div className="card flex flex-col items-center px-6 py-12 text-center">
+            <Search className="size-8 text-muted-2" />
+            <p className="mt-4 text-sm font-bold">Watchlist masih kosong</p>
+            <p className="mt-1 max-w-sm text-xs text-muted">Cari dan tambahkan coin yang ingin kamu pantau.</p>
+            {!unauthorized && <button type="button" onClick={() => setShowAdd(true)} className="mt-5 rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white">Cari coin</button>}
+          </div>
+        )}
         {items.map((item) => (
           <WatchlistCard key={item.id} item={item} market={marketBySymbol.get(item.symbol)} signal={signalBySymbol.get(item.symbol)} maxVolume={maxVolume} preview={unauthorized} onRemove={(id) => void remove(id)} />
-        ))}
-        {lockedSymbols.map((symbol, index) => (
-          <div key={`locked-${symbol}`} className="card relative flex items-center gap-3 overflow-hidden bg-surface-2/40 px-5 py-5 text-muted-2">
-            <span className="w-8 text-xs">#{items.length + index + 1}</span>
-            <span className="flex select-none items-center gap-3 font-bold blur-[3px]" aria-hidden="true"><CoinIcon symbol={symbol} size={38} />{symbol}</span>
-            <span className="flex-1" /><Badge tone="neutral">Premium</Badge><LockKeyhole className="size-4" aria-label="Terkunci untuk paket Free" />
-          </div>
         ))}
       </div>
     </div>

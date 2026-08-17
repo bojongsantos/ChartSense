@@ -2,14 +2,12 @@ import "dotenv/config";
 import { hashPassword } from "better-auth/crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Plan, type UserRole } from "../src/generated/prisma/client";
-import { DEFAULT_WATCHLIST } from "../src/config/default-watchlist";
-import { FREE_WATCHLIST_LIMIT, PREMIUM_WATCHLIST_LIMIT } from "../src/core/domain/access/watchlist";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL wajib untuk seed.");
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
-interface SeedUser { email: string; name: string; password: string; role: UserRole; plan: Plan; symbols: number }
+interface SeedUser { email: string; name: string; password: string; role: UserRole; plan: Plan }
 
 async function upsertUser(input: SeedUser) {
   const password = await hashPassword(input.password);
@@ -29,14 +27,13 @@ async function upsertUser(input: SeedUser) {
     update: { provider: "seed", plan: input.plan, status: input.plan === "PREMIUM" ? "ACTIVE" : "INACTIVE" },
   });
   await prisma.watchlistItem.deleteMany({ where: { userId: user.id } });
-  await prisma.watchlistItem.createMany({ data: DEFAULT_WATCHLIST.slice(0, input.symbols).map((symbol, position) => ({ userId: user.id, symbol, position })) });
 }
 
 async function main() {
   const sharedPassword = process.env.SEED_USER_PASSWORD ?? "ChartSense123!";
-  await upsertUser({ email: "free@chartsense.local", name: "Free User", password: sharedPassword, role: "USER", plan: "FREE", symbols: FREE_WATCHLIST_LIMIT });
-  await upsertUser({ email: "premium@chartsense.local", name: "Premium User", password: sharedPassword, role: "USER", plan: "PREMIUM", symbols: PREMIUM_WATCHLIST_LIMIT });
-  await upsertUser({ email: "admin@chartsense.local", name: "ChartSense Admin", password: process.env.SEED_ADMIN_PASSWORD ?? sharedPassword, role: "ADMIN", plan: "PREMIUM", symbols: PREMIUM_WATCHLIST_LIMIT });
+  await upsertUser({ email: "free@chartsense.local", name: "Free User", password: sharedPassword, role: "USER", plan: "FREE" });
+  await upsertUser({ email: "premium@chartsense.local", name: "Premium User", password: sharedPassword, role: "USER", plan: "PREMIUM" });
+  await upsertUser({ email: "admin@chartsense.local", name: "ChartSense Admin", password: process.env.SEED_ADMIN_PASSWORD ?? sharedPassword, role: "ADMIN", plan: "PREMIUM" });
   await prisma.featureGate.createMany({
     data: [
       { feature: "scannerExtended", free: false, premium: true },

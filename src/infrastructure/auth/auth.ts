@@ -4,8 +4,6 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/infrastructure/database/prisma";
 import { sendTransactionalEmail } from "@/infrastructure/email/email-service";
-import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
-import { FREE_WATCHLIST_LIMIT } from "@/core/domain/access/watchlist";
 
 const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
@@ -15,18 +13,6 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: [appUrl],
   database: prismaAdapter(prisma, { provider: "postgresql" }),
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          await prisma.watchlistItem.createMany({
-            data: DEFAULT_WATCHLIST.slice(0, FREE_WATCHLIST_LIMIT).map((symbol, position) => ({ userId: user.id, symbol, position })),
-            skipDuplicates: true,
-          });
-        },
-      },
-    },
-  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,
