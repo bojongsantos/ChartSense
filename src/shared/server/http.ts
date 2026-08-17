@@ -39,3 +39,11 @@ export function getRequestIp(request: Request): string | null {
     ?? request.headers.get("x-real-ip")
     ?? null;
 }
+
+/** 429 response carrying the standard hint for when to try again. */
+export function tooManyRequests(retryAfterSeconds: number): Response {
+  return Response.json(
+    { error: { code: "RATE_LIMITED", message: "Terlalu banyak permintaan. Coba lagi sebentar." } },
+    { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
+  );
+}
