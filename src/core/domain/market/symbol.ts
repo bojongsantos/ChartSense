@@ -17,3 +17,17 @@ export function mergeSearchableSymbols(preferred: string[], catalog: string[]): 
   return [...new Set([...preferred, ...catalog].map((symbol) => symbol.trim().toUpperCase()))]
     .filter(isValidBinanceSymbol);
 }
+
+export function filterSearchableSymbols(
+  catalog: string[],
+  query: string,
+  excluded: Iterable<string> = [],
+  limit = 8,
+): string[] {
+  const needle = query.trim().toUpperCase().replace(/[\s/_-]+/g, "");
+  if (!needle) return [];
+  const blocked = new Set(excluded);
+  return catalog
+    .filter((symbol) => !blocked.has(symbol) && symbol.replace(/USDT$/, "").includes(needle))
+    .slice(0, limit);
+}
