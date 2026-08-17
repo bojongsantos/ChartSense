@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseScanSymbols } from "@/core/application/scanner/scan-request";
-import { rankTopSetups, type SdScanHit, type SdScanResult } from "@/core/application/scanner/supply-demand-scan-service";
+import { rankTopSetups, signalBucket, type SdScanHit, type SdScanResult } from "@/core/application/scanner/supply-demand-scan-service";
 import { normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import { mapConcurrent } from "@/shared/lib/async";
 
@@ -69,4 +69,11 @@ test("top setups prioritize live fresh zones and assign stable ranks", () => {
     [1, "CCCUSDT"],
     [2, "BBBUSDT"],
   ]);
+});
+
+test("signal category follows Buy/Sell direction even when zone metadata is inconsistent", () => {
+  const sell = { ...hit("BTCUSDT", 80, 90, "fresh"), direction: "short" as const, zoneType: "demand" as const };
+  const buy = { ...hit("ETHUSDT", 80, 90, "fresh"), direction: "long" as const, zoneType: "supply" as const };
+  assert.equal(signalBucket(sell), "supply");
+  assert.equal(signalBucket(buy), "demand");
 });

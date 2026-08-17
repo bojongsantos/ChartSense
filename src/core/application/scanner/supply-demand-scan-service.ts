@@ -36,6 +36,10 @@ export interface SdScanResult {
   errors: string[];
 }
 
+export function signalBucket(hit: Pick<SdScanHit, "direction">): "demand" | "supply" {
+  return hit.direction === "long" ? "demand" : "supply";
+}
+
 export async function runSdScan(
   marketData: MarketDataPort,
   symbols: string[],
@@ -81,7 +85,7 @@ export async function runSdScan(
           status: setup.status,
           setupScore: Math.round(setup.confidence * 0.82 + 8),
         };
-        if (setup.zone.type === "demand") demand.push(hit);
+        if (signalBucket(hit) === "demand") demand.push(hit);
         else supply.push(hit);
       } catch (error) {
         errors.push(`${symbol}: ${error instanceof Error ? error.message : String(error)}`);
