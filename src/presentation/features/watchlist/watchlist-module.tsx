@@ -5,10 +5,16 @@ import Link from "next/link";
 import { Crown, Eye, Loader2, LockKeyhole, Plus, Search, Trash2 } from "lucide-react";
 import type { SdMarketSnapshot, SdScanHit, SdScanResult } from "@/core/application/scanner/supply-demand-scan-service";
 import { filterSearchableSymbols, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
+import type { BinanceStreamUpdate } from "@/infrastructure/market-data/binance-stream-client";
+import {
+  subscribeBinanceMarkets,
+  type BinanceStreamStatus,
+} from "@/infrastructure/market-data/binance-stream-client";
 import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
 import { Badge } from "@/presentation/ui/badge";
 import { CoinIcon } from "@/presentation/ui/coin-icon";
-import { formatCompact } from "@/shared/lib/format";
+import { Sparkline } from "@/presentation/ui/sparkline";
+import { formatCompact, formatPrice, priceDecimals } from "@/shared/lib/format";
 
 interface WatchlistItem {
   id: string;
@@ -62,6 +68,73 @@ function Confidence({ signal }: { signal?: SdScanHit }) {
         <div className="h-full rounded-full" style={{ background: color, width: `${signal.confidence}%` }} />
       </div>
     </div>
+  );
+}
+
+function LiveTrendTable({
+  items,
+  marketBySymbol,
+  streamStatus,
+}: {
+  items: WatchlistItem[];
+  marketBySymbol: Map<string, SdMarketSnapshot>;
+  streamStatus: BinanceStreamStatus;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div>
+          <h2 className="text-sm font-bold">Pergerakan Market Realtime</h2>
+          <p className="mt-0.5 text-[10px] text-muted">Candle 15 menit · histori 24 jam dari Binance</p>
+        </div>
+        <Badge tone={streamStatus === "live" ? "positive" : "warning"}>
+          {streamStatus === "live" ? "Realtime" : "Menghubungkan"}
+        </Badge>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left text-xs">
+          <thead className="bg-surface-2/50 text-[10px] uppercase tracking-wide text-muted-2">
+            <tr>
+              <th className="px-4 py-3">Pair</th>
+              <th className="px-4 py-3">Harga</th>
+              <th className="px-4 py-3">24H</th>
+              <th className="px-4 py-3">Grafik 24H</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => {
+              const market = marketBySymbol.get(item.symbol);
+              const change = market?.change24h ?? 0;
+              const color = change >= 0 ? "var(--color-positive)" : "var(--color-negative)";
+              return (
+                <tr key={item.id} className="border-t border-border/60">
+                  <td className="px-4 py-3">
+                    <Link href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`} className="flex items-center gap-2.5 font-bold hover:text-accent-2">
+                      <CoinIcon symbol={item.symbol} size={28} />
+                      {item.symbol.replace(/USDT$/, "")}<span className="font-medium text-muted-2">/USDT</span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 font-semibold tabular-nums">
+                    {market ? `$${formatPrice(market.price, priceDecimals(market.price))}` : "—"}
+                  </td>
+                  <td className={`px-4 py-3 font-bold tabular-nums ${change >= 0 ? "text-positive" : "text-negative"}`}>
+                    {market ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    {market?.sparkline.length ? (
+                      <Sparkline data={market.sparkline} width={180} height={38} stroke={color} fill={false} />
+                    ) : (
+                      <span className="text-muted-2">Memuat grafik…</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -146,6 +219,7 @@ export function WatchlistModule() {
   const [catalog, setCatalog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [scan, setScan] = useState<SdScanResult | null>(null);
+  const [marketStreamStatus, setMarketStreamStatus] = useState<BinanceStreamStatus>("connecting");
 
   const load = useCallback(async () => {
     const [response, symbols] = await Promise.all([
@@ -193,6 +267,59 @@ export function WatchlistModule() {
         setError(caught instanceof Error ? caught.message : "Data market gagal dimuat.");
       })
     return () => controller.abort();
+  }, [symbolKey]);
+
+  useEffect(() => {
+    if (!symbolKey) return;
+    const pending = new Map<string, BinanceStreamUpdate>();
+    const candleTimes = new Map<string, number>();
+    const stop = subscribeBinanceMarkets(
+      symbolKey.split(","),
+      "15m",
+      (update) => {
+        const previous = pending.get(update.symbol);
+        pending.set(update.symbol, {
+          symbol: update.symbol,
+          candle: update.candle ?? previous?.candle,
+          ticker: update.ticker ?? previous?.ticker,
+        });
+      },
+      setMarketStreamStatus,
+    );
+    const flush = window.setInterval(() => {
+      if (pending.size === 0) return;
+      const updates = new Map(pending);
+      pending.clear();
+      setScan((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          market: current.market.map((market) => {
+            const update = updates.get(market.symbol);
+            if (!update) return market;
+            let sparkline = market.sparkline;
+            if (update.candle) {
+              const previousTime = candleTimes.get(market.symbol);
+              sparkline = previousTime === undefined || previousTime === update.candle.time
+                ? [...sparkline.slice(0, -1), update.candle.close]
+                : [...sparkline.slice(-95), update.candle.close];
+              candleTimes.set(market.symbol, update.candle.time);
+            }
+            return {
+              ...market,
+              price: update.ticker?.lastPrice ?? update.candle?.close ?? market.price,
+              change24h: update.ticker?.priceChangePercent ?? market.change24h,
+              volume24h: update.ticker?.quoteVolume ?? market.volume24h,
+              sparkline,
+            };
+          }),
+        };
+      });
+    }, 1_000);
+    return () => {
+      window.clearInterval(flush);
+      stop();
+    };
   }, [symbolKey]);
 
   async function add(value = draft) {
@@ -305,6 +432,12 @@ export function WatchlistModule() {
       )}
 
       {error && <p className="rounded-lg border border-negative/30 bg-negative/10 p-3 text-xs text-negative">{error}</p>}
+
+      <LiveTrendTable
+        items={visibleItems}
+        marketBySymbol={marketBySymbol}
+        streamStatus={marketStreamStatus}
+      />
 
       <div className="flex flex-col gap-5">
         {items.length === 0 && (

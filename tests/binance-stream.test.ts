@@ -6,7 +6,7 @@ import { prependCandleHistory } from "@/presentation/hooks/use-live-analysis";
 test("Binance stream messages map to live candles and tickers", () => {
   const candle = parseBinanceStreamMessage(JSON.stringify({
     stream: "btcusdt@kline_15m",
-    data: { e: "kline", k: { t: 1_700_000_000_000, o: "10", h: "12", l: "9", c: "11", v: "25" } },
+    data: { e: "kline", s: "BTCUSDT", k: { t: 1_700_000_000_000, o: "10", h: "12", l: "9", c: "11", v: "25" } },
   }));
   const ticker = parseBinanceStreamMessage(JSON.stringify({
     stream: "btcusdt@ticker",
@@ -21,6 +21,7 @@ test("Binance stream messages map to live candles and tickers", () => {
     close: 11,
     volume: 25,
   });
+  assert.equal(candle?.symbol, "BTCUSDT");
   assert.equal(ticker?.ticker?.symbol, "BTCUSDT");
   assert.equal(ticker?.ticker?.priceChangePercent, 10);
   assert.equal(parseBinanceStreamMessage("invalid"), null);
