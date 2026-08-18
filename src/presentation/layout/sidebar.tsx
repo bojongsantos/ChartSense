@@ -49,7 +49,7 @@ export function Sidebar() {
         </span>
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           const locked = lockedItems.has(item.id);
@@ -58,33 +58,43 @@ export function Sidebar() {
               key={item.id}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
+              className={`group relative flex w-full items-center gap-3 rounded-lg py-2.5 pl-4 pr-3 text-[13px] transition-colors ${
                 active
-                  ? "bg-accent/10 text-foreground"
-                  : "text-muted hover:bg-surface-3 hover:text-foreground"
+                  ? "bg-accent/10 font-semibold text-foreground"
+                  : "font-medium text-muted hover:bg-surface-3 hover:text-foreground"
               }`}
             >
-              <item.icon
-                className={`size-4 ${active ? "text-accent-2" : "text-muted-2 group-hover:text-muted"}`}
+              {/* A short accent bar makes the current page readable at a glance,
+                  rather than relying on a faint background tint alone. */}
+              <span
+                aria-hidden
+                className={`absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full transition-colors ${
+                  active ? "bg-accent-2" : "bg-transparent"
+                }`}
               />
-              <span className="flex-1">{item.label}</span>
+              <item.icon
+                className={`size-4 shrink-0 ${active ? "text-accent-2" : "text-muted-2 group-hover:text-muted"}`}
+              />
+              <span className="flex-1 truncate">{item.label}</span>
               {locked && <Lock className="size-3.5 shrink-0 text-warning" />}
             </Link>
           );
         })}
       </nav>
 
-      <div className="space-y-4 border-t border-border px-4 py-4">
-          <div className="card p-4">
-            <p className="text-[12px] font-semibold">{authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "ChartSense Account"}</p>
-            <p className="mt-1 text-[11px] leading-snug text-muted">
-              {!authenticated
-                ? "Login untuk menyimpan watchlist dan mengaktifkan Premium."
-                : plan === "premium"
-                  ? "Premium aktif. Seluruh fitur dan scanner tersedia."
-                  : "Free aktif. Watchlist tersimpan pada akun Anda."}
-            </p>
-          </div>
+      <div className="border-t border-border p-4">
+        <div className="card p-4">
+          <p className="text-[12px] font-semibold">
+            {authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "ChartSense Account"}
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-muted">
+            {!authenticated
+              ? "Login untuk menyimpan watchlist dan mengaktifkan Premium."
+              : plan === "premium"
+                ? "Premium aktif. Seluruh fitur dan scanner tersedia."
+                : "Free aktif. Watchlist tersimpan pada akun Anda."}
+          </p>
+        </div>
       </div>
     </aside>
   );

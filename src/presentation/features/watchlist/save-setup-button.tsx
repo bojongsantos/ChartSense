@@ -4,15 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { BookmarkCheck, BookmarkPlus, Loader2 } from "lucide-react";
 import type { PatternSummary } from "@/core/domain/models";
-import { saveSetupToJournal } from "@/infrastructure/persistence/journal-api-client";
+import { saveSetupToWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
 import { usePlan } from "@/presentation/features/access/plan-provider";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 /**
- * Records the currently displayed setup in the user's history so its outcome
- * can be evaluated later. Rendered only when a real setup exists — there is
- * nothing meaningful to journal otherwise.
+ * Pins the setup currently on screen to the user's watchlist. Rendered only
+ * when a real setup exists — there is nothing meaningful to save otherwise.
  */
 export function SaveSetupButton({ pattern }: { pattern: PatternSummary }) {
   const { authenticated } = usePlan();
@@ -34,7 +33,7 @@ export function SaveSetupButton({ pattern }: { pattern: PatternSummary }) {
   if (!authenticated) {
     return (
       <Link
-        href="/login?next=/history"
+        href="/login?next=/watchlist"
         className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-bold text-muted transition-colors hover:border-border-strong hover:text-foreground"
       >
         <BookmarkPlus className="size-3.5" />
@@ -47,7 +46,7 @@ export function SaveSetupButton({ pattern }: { pattern: PatternSummary }) {
     if (!setup) return;
     setState("saving");
     try {
-      await saveSetupToJournal({
+      await saveSetupToWatchlist({
         symbol: pattern.symbol,
         timeframe: pattern.timeframe,
         direction: setup.direction,
@@ -81,14 +80,14 @@ export function SaveSetupButton({ pattern }: { pattern: PatternSummary }) {
         ) : (
           <BookmarkPlus className="size-3.5" />
         )}
-        {state === "saved" ? "Tersimpan di History" : "Simpan setup ke History"}
+        {state === "saved" ? "Tersimpan di Watchlist" : "Simpan setup ke Watchlist"}
       </button>
       {state === "saved" && (
         <Link
-          href="/history"
+          href="/watchlist"
           className="mt-1.5 block text-center text-[10px] font-semibold text-accent-2"
         >
-          Lihat riwayat
+          Lihat watchlist
         </Link>
       )}
       {state === "error" && message && (

@@ -141,7 +141,6 @@ function ZoneCard({
         </h3>
         <span className="text-[11px] text-muted-2">{total} setup</span>
       </div>
-      <p className="mt-0.5 text-[10px] text-muted-2">diurutkan dari volume tertinggi</p>
 
       {/* Internal scroll area — header/footer stay fixed outside this box */}
       <div
@@ -197,7 +196,7 @@ function ZoneCard({
 }
 
 export function SupplyDemandSection({ onSelect, membership }: { onSelect?: (symbol: string) => void; membership: WatchlistMembership }) {
-  const { result, loading, error, lastRun, refresh } = useSdScan();
+  const { result, loading, error, refresh } = useSdScan();
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-3 sm:p-6">
@@ -218,12 +217,6 @@ export function SupplyDemandSection({ onSelect, membership }: { onSelect?: (symb
           {loading ? "Scanning…" : "Scan Semua"}
         </button>
       </div>
-
-      {lastRun && (
-        <p className="text-[11px] text-muted-2">
-          Terakhir discan: {new Date(lastRun).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-        </p>
-      )}
 
       {error && (
         <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-[12px] text-warning">

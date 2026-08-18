@@ -67,6 +67,18 @@ export const TERMINAL_SETUP_STATUSES: SetupStatus[] = [
 
 const SWING_RADIUS = 2;
 const SWING_LOOKBACK = 50;
+
+/**
+ * Trailing candles searched for zones.
+ *
+ * Bounded here rather than left to each caller, because the scanner and the
+ * analysis page hand in different amounts of history. Scanning whatever they
+ * happened to fetch made the two disagree about the same market: the signals
+ * table could advertise a limit order while the chart showed no setup at all.
+ * Every caller must supply at least this many candles for the results to line
+ * up; supplying more is harmless and leaves the extra bars for the chart.
+ */
+export const ZONE_SCAN_WINDOW = 300;
 const STOP_BUFFER_RATIO = 0.001;
 
 /**
@@ -151,7 +163,8 @@ export function detectSupplyDemand(
     candles.slice(-40).reduce((s, c) => s + (c.high - c.low), 0) / Math.max(1, Math.min(40, candles.length));
   const impulseFactor = 1.6;
 
-  for (let i = 2; i < candles.length - 1; i++) {
+  const scanStart = Math.max(2, candles.length - ZONE_SCAN_WINDOW);
+  for (let i = scanStart; i < candles.length - 1; i++) {
     const baseStart = i - 2; // up to 2 candles of base before the impulse
     const impulse = candles[i];
     const impulseRange = impulse.high - impulse.low;

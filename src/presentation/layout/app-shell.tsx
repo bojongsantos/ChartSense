@@ -27,7 +27,10 @@ export function AppShell({
   const { context, sentiment } = useMarketContext(showMarketData);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    // h-dvh, not h-screen: on mobile browsers 100vh is taller than the area
+    // actually visible, so the bottom of the shell — including the nav bar —
+    // fell below the fold and the page appeared to overshoot when scrolled.
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNav />

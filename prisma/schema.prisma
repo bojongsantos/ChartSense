@@ -146,6 +146,18 @@ model WatchlistItem {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// Snapshot of the setup saved alongside the symbol. All null until the user
+  /// saves one, so a plain watchlist entry stays exactly as it was.
+  setupTimeframe  String?
+  setupDirection  String?
+  setupEntry      Float?
+  setupTarget1    Float?
+  setupTarget2    Float?
+  setupStopLoss   Float?
+  setupRiskReward Float?
+  setupConfidence Int?
+  setupSavedAt    DateTime?
+
   @@unique([userId, symbol])
   @@index([userId, enabled, position])
 }

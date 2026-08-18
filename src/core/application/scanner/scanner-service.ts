@@ -1,6 +1,6 @@
 import type { MarketDataPort } from "@/core/application/ports/market-data-port";
 import { emaSeries, rsiSeries } from "@/core/domain/analysis/analysis-engine";
-import { detectSupplyDemand } from "@/core/domain/analysis/supply-demand";
+import { detectSupplyDemand, ZONE_SCAN_WINDOW } from "@/core/domain/analysis/supply-demand";
 import type { ScannerOpportunity, Timeframe } from "@/core/domain/models";
 import { mapConcurrent } from "@/shared/lib/async";
 
@@ -54,7 +54,7 @@ export async function runScanner(
       try {
         const ticker = tickerMap.get(symbol);
         if (!ticker) throw new Error(`No ticker for ${symbol}`);
-        const candles = await marketData.fetchKlines({ symbol, timeframe: SCAN_TIMEFRAME, limit: 100 });
+        const candles = await marketData.fetchKlines({ symbol, timeframe: SCAN_TIMEFRAME, limit: ZONE_SCAN_WINDOW });
         const sd = detectSupplyDemand(candles, symbol, SCAN_TIMEFRAME);
         if (!sd.setup) return null;
 

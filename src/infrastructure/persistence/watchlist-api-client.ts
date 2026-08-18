@@ -42,3 +42,28 @@ export async function fetchEnabledWatchlist(): Promise<string[]> {
     return DEFAULT_WATCHLIST;
   }
 }
+
+export interface WatchlistSetupInput {
+  symbol: string;
+  timeframe: "15m" | "1H" | "4H" | "1D";
+  direction: "long" | "short";
+  entry: number;
+  target1: number;
+  target2: number;
+  stopLoss: number;
+  riskReward: number;
+  confidence: number;
+}
+
+/** Pins a setup to the watchlist, adding the symbol if it is not there yet. */
+export async function saveSetupToWatchlist(input: WatchlistSetupInput): Promise<void> {
+  const response = await fetch("/api/watchlist/setup", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+    throw new Error(payload?.error?.message ?? "Setup gagal disimpan ke watchlist.");
+  }
+}

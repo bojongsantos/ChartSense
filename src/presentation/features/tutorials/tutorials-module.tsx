@@ -52,7 +52,7 @@ const LESSONS: Lesson[] = [
   {
     id: "conviction",
     icon: BookOpen,
-    title: "Conviction score",
+    title: "Confidence score",
     summary: "Skor 0-100 hasil penjumlahan aturan teknikal, bukan prediksi.",
     points: [
       "Komponen mencakup kualitas zona, struktur tren, momentum, dan volume.",

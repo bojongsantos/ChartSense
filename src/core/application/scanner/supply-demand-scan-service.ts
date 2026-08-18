@@ -2,6 +2,7 @@ import type { MarketDataPort } from "@/core/application/ports/market-data-port";
 import {
   ACTIVE_SETUP_STATUSES,
   detectSupplyDemand,
+  ZONE_SCAN_WINDOW,
   type SdResult,
 } from "@/core/domain/analysis/supply-demand";
 import type { Timeframe } from "@/core/domain/models";
@@ -64,7 +65,7 @@ export async function runSdScan(
     symbols,
     async (symbol) => {
       try {
-        const candles = await marketData.fetchKlines({ symbol, timeframe: SD_SCAN_TIMEFRAME, limit: 100 });
+        const candles = await marketData.fetchKlines({ symbol, timeframe: SD_SCAN_TIMEFRAME, limit: ZONE_SCAN_WINDOW });
         sparklineMap.set(symbol, candles.slice(-96).map((candle) => candle.close));
         const sd: SdResult = detectSupplyDemand(candles, symbol, SD_SCAN_TIMEFRAME);
         if (!sd.setup) return;

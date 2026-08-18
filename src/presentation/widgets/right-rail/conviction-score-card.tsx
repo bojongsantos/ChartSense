@@ -25,7 +25,7 @@ export function ConvictionScoreCard({ data }: { data: ConvictionScore }) {
 
   return (
     <section className="card p-4">
-      <h3 className="text-center text-[13px] font-semibold">Conviction Score</h3>
+      <h3 className="text-center text-[13px] font-semibold">Confidence Score</h3>
 
       <div className="mt-4 flex flex-col items-center">
         {waiting ? (

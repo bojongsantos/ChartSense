@@ -32,7 +32,7 @@ export const featureLabel: Record<FeatureKey, string> = {
   entryBreakdown: "Entry, targets & invalidation levels",
   historicalPerformance: "Historical performance breakdown",
   similarPatterns: "Similar patterns found",
-  convictionDetail: "Conviction score breakdown",
+  convictionDetail: "Confidence score breakdown",
   scannerExtended: "Full scanner opportunities list",
   signals: "Signals — live supply & demand setups across the watchlist",
 };

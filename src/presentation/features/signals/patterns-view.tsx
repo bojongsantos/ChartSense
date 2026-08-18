@@ -78,7 +78,7 @@ function ZoneTable({ title, hits, tone, membership }: { title: string; hits: SdS
           <div>
             <h3 className="text-[14px] font-bold tracking-tight">{title}</h3>
             <p className="text-[10px] text-muted-2">
-              {filtered.length} setup aktif · diurutkan dari volume tertinggi
+              {filtered.length} setup aktif
             </p>
           </div>
         </div>
@@ -162,7 +162,7 @@ function ZoneTable({ title, hits, tone, membership }: { title: string; hits: SdS
 export function PatternsView() {
   const { canAccess } = usePlan();
   const signalsEnabled = canAccess("signals");
-  const { result, loading, error, lastRun, refresh } = useSdScan(signalsEnabled);
+  const { result, loading, error, refresh } = useSdScan(signalsEnabled);
   const membership = useWatchlistMembership();
 
   return (
@@ -206,10 +206,6 @@ export function PatternsView() {
             </p>
           </div>
         </div>
-      ) : lastRun ? (
-        <p className="text-[11px] text-muted-2">
-          Terakhir discan: {new Date(lastRun).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-        </p>
       ) : null}
 
       {signalsEnabled && error && (

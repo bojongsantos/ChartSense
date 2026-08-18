@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import {
   BaselineSeries,
   CandlestickSeries,
@@ -132,17 +132,12 @@ interface ChartPanelProps {
   levels: TradeLevel[];
   history: HistoryState;
   onLoadMoreHistory: () => Promise<void>;
+  /** Filled with a chart snapshot function so the header can build a share image. */
+  captureRef?: MutableRefObject<(() => HTMLCanvasElement | null) | null>;
 }
 
 /** How many future candles the setup zone extends. */
 const ZONE_EXTEND_BARS = 12;
-
-const historyDateFormatter = new Intl.DateTimeFormat("id-ID", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  timeZone: "UTC",
-});
 
 const upColor = "#089981";
 const downColor = "#f23645";
@@ -161,6 +156,7 @@ export function ChartPanel({
   levels,
   history,
   onLoadMoreHistory,
+  captureRef,
 }: ChartPanelProps) {
   const { canAccess } = usePlan();
   const showTradeLevels = canAccess("entryBreakdown");
@@ -264,6 +260,10 @@ export function ChartPanel({
 
     chartRef.current = chart;
 
+    // The share image needs the rendered chart, and only this component owns
+    // the instance. Expose a snapshot function rather than the chart itself.
+    if (captureRef) captureRef.current = () => chartRef.current?.takeScreenshot() ?? null;
+
     const onVisibleRange = (range: { from: number; to: number } | null) => {
       if (!range) return;
       visibleRangeRef.current = { from: range.from, to: range.to };
@@ -285,6 +285,7 @@ export function ChartPanel({
       patternMarkersRef.current = null;
       priceLineRef.current = [];
       visibleRangeRef.current = null;
+      if (captureRef) captureRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -511,13 +512,13 @@ export function ChartPanel({
     }
   }, [levels, showTradeLevels]);
 
-  const historyStatus = history.loading
-    ? "Memuat histori…"
-    : history.reachedStart
-      ? "Awal histori pasar tercapai"
-      : history.truncated
-        ? "Batas pemuatan tercapai — geser ke kiri untuk menambah"
-        : "Geser ke kiri untuk histori lebih lama";
+  // The routine hints were removed from the footer for a cleaner chart. Only
+  // the truncated state still has something the reader must act on: history
+  // stops short of what the range asked for, and scrolling loads more.
+  const truncationNotice =
+    !history.loading && !history.reachedStart && history.truncated
+      ? "Batas pemuatan tercapai — geser ke kiri untuk menambah"
+      : null;
 
   return (
     <div className="card flex flex-col overflow-hidden">
@@ -587,21 +588,17 @@ export function ChartPanel({
 
       <div className="relative h-[420px] w-full">
         <div ref={containerRef} className="h-full w-full" />
+        {truncationNotice && (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border bg-surface/90 px-3 py-1 text-[10px] font-medium text-muted-2 shadow-sm backdrop-blur">
+            {truncationNotice}
+          </div>
+        )}
         {history.loading && history.progress && history.progress.totalPages > 1 && (
           <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-border bg-surface/90 px-3 py-1 text-[10px] font-semibold text-muted shadow-sm backdrop-blur">
             Memuat histori {history.progress.loadedPages}/{history.progress.totalPages} ·{" "}
             {history.progress.candles.toLocaleString("id-ID")} candle
           </div>
         )}
-      </div>
-
-      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5">
-        <span className="text-[10px] text-muted-2">{historyStatus}</span>
-        <span className="hidden text-[10px] text-muted-2 sm:block">
-          {historyDateFormatter.format(data.candles[0].time * 1_000)}–
-          {historyDateFormatter.format(data.candles.at(-1)!.time * 1_000)} ·{" "}
-          {data.candles.length.toLocaleString("id-ID")} bar · kanan: area proyeksi
-        </span>
       </div>
     </div>
   );

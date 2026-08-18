@@ -6,13 +6,12 @@ import { formatPercent, formatPrice } from "@/shared/lib/format";
 import { ProgressBar } from "@/presentation/ui/progress-bar";
 import { Badge } from "@/presentation/ui/badge";
 import { LockedOverlay } from "@/presentation/ui/locked-overlay";
-import { SaveSetupButton } from "@/presentation/features/history/save-setup-button";
+import { SaveSetupButton } from "@/presentation/features/watchlist/save-setup-button";
 
 interface PatternCardProps {
   pattern: PatternSummary;
   levels: TradeLevel[];
   riskReward: number;
-  price: number;
   precision: number;
 }
 
@@ -26,7 +25,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-export function PatternCard({ pattern, levels, riskReward, price, precision }: PatternCardProps) {
+export function PatternCard({ pattern, levels, riskReward, precision }: PatternCardProps) {
   const bullish = pattern.trend === "bullish";
   const TrendIcon = bullish ? TrendingUp : TrendingDown;
   const statusInvalid = pattern.status === "Invalidated (SL hit)" || pattern.status === "Target 2 reached";
@@ -114,9 +113,6 @@ export function PatternCard({ pattern, levels, riskReward, price, precision }: P
             <span className="text-[12px] font-medium text-muted">Risk-Reward Ratio</span>
             <span className="text-[13px] font-bold tabular-nums text-foreground">1 : {riskReward.toFixed(0)}</span>
           </div>
-          <p className="mt-2 text-[10px] text-muted-2">
-            Current price <span className="tabular-nums">${formatPrice(price, precision)}</span>
-          </p>
         </LockedOverlay>
       </div>
 

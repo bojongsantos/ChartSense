@@ -29,7 +29,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-blue">

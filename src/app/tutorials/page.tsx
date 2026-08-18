@@ -4,7 +4,7 @@ import { AppShell } from "@/presentation/layout/app-shell";
 
 export const metadata: Metadata = {
   title: "Tutorials · ChartSense",
-  description: "Panduan membaca zona supply & demand, setup, dan conviction score ChartSense.",
+  description: "Panduan membaca zona supply & demand, setup, dan confidence score ChartSense.",
 };
 
 export default function TutorialsPage() {

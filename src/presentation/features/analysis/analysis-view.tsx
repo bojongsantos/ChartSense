@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import type { HistoryRange } from "@/core/application/market-data/history-plan";
 import type { AnalysisResult, Timeframe } from "@/core/domain/models";
 import type { HistoryState } from "@/presentation/hooks/use-live-analysis";
@@ -31,6 +33,8 @@ export function AnalysisView({
   onLoadMoreHistory,
 }: AnalysisViewProps) {
   const precision = priceDecimals(data.pair.price);
+  // Owned here so the header can snapshot the chart the panel renders.
+  const captureRef = useRef<(() => HTMLCanvasElement | null) | null>(null);
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
@@ -39,6 +43,10 @@ export function AnalysisView({
         timeframe={timeframe}
         exchange={data.exchange}
         analyzedAt={data.analyzedAt}
+        pattern={data.pattern}
+        levels={data.levels}
+        riskReward={data.riskReward}
+        captureRef={captureRef}
       />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -56,12 +64,12 @@ export function AnalysisView({
           onRangeChange={onRangeChange}
           history={history}
           onLoadMoreHistory={onLoadMoreHistory}
+          captureRef={captureRef}
         />
         <PatternCard
           pattern={data.pattern}
           levels={data.levels}
           riskReward={data.riskReward}
-          price={data.pair.price}
           precision={precision}
         />
       </div>

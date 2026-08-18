@@ -323,7 +323,7 @@ export function WatchlistModule() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Watchlist</h1>
             <p className="mt-2 text-xs text-muted">
-              {unauthorized ? "Login untuk membuat watchlist pribadi." : `${items.length} dari ${limit} coin dipantau.`}
+              {unauthorized ? "Login untuk membuat watchlist pribadi." : "Coin yang Anda pantau."}
             </p>
           </div>
           {marketLoading ? (

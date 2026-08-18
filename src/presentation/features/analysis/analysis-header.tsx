@@ -1,19 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { CalendarDays, Plus, Share2 } from "lucide-react";
-import type { PairSummary, Timeframe } from "@/core/domain/models";
+import { useState, type MutableRefObject } from "react";
+import { CalendarDays, Loader2, Share2 } from "lucide-react";
+import type { PairSummary, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
+import { composeShareImage } from "@/presentation/features/analysis/share-image";
 
 interface AnalysisHeaderProps {
   pair: PairSummary;
   timeframe: Timeframe;
   exchange: string;
   analyzedAt: string;
+  pattern: PatternSummary;
+  levels: TradeLevel[];
+  riskReward: number;
+  captureRef: MutableRefObject<(() => HTMLCanvasElement | null) | null>;
 }
 
-export function AnalysisHeader({ pair, timeframe, exchange, analyzedAt }: AnalysisHeaderProps) {
-  const [shareLabel, setShareLabel] = useState("Share");
+type ShareState = "idle" | "working" | "done" | "error";
+
+const LABEL: Record<ShareState, string> = {
+  idle: "Share",
+  working: "Menyiapkan…",
+  done: "Tersimpan",
+  error: "Gagal",
+};
+
+export function AnalysisHeader({
+  pair,
+  timeframe,
+  exchange,
+  analyzedAt,
+  pattern,
+  levels,
+  riskReward,
+  captureRef,
+}: AnalysisHeaderProps) {
+  const [state, setState] = useState<ShareState>("idle");
   const date = new Date(analyzedAt);
   const dateLabel = date.toLocaleDateString("en-US", {
     month: "short",
@@ -21,18 +43,58 @@ export function AnalysisHeader({ pair, timeframe, exchange, analyzedAt }: Analys
     year: "numeric",
   });
 
-  async function shareAnalysis() {
-    try {
-      const data = { title: `${pair.symbol} · ChartSense`, text: `${pair.symbol} ${timeframe} analysis`, url: window.location.href };
-      const nativeShare = (navigator as unknown as { share?: (value: ShareData) => Promise<void> }).share;
-      if (nativeShare) await nativeShare.call(navigator, data);
-      else await navigator.clipboard.writeText(window.location.href);
-      setShareLabel(nativeShare ? "Shared" : "Link copied");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setShareLabel("Unavailable");
+  /**
+   * Exports the chart and its trade plan as one image. Shares the file
+   * directly where the platform supports it, and falls back to a download
+   * everywhere else.
+   */
+  async function share() {
+    const chart = captureRef.current?.();
+    if (!chart) {
+      setState("error");
+      window.setTimeout(() => setState("idle"), 2_000);
+      return;
     }
-    window.setTimeout(() => setShareLabel("Share"), 2_000);
+    setState("working");
+    try {
+      const blob = await composeShareImage({
+        chart,
+        symbol: pair.symbol,
+        timeframe,
+        price: pair.price,
+        change24h: pair.change24h,
+        pattern,
+        levels,
+        riskReward,
+      });
+      if (!blob) throw new Error("Gambar gagal dibuat.");
+
+      const fileName = `${pair.symbol}-${timeframe}-chartsense.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+      const shareApi = navigator as unknown as {
+        canShare?: (data: ShareData) => boolean;
+        share?: (data: ShareData) => Promise<void>;
+      };
+
+      if (shareApi.share && shareApi.canShare?.({ files: [file] })) {
+        await shareApi.share({ files: [file], title: `${pair.symbol} · ChartSense` });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+      setState("done");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setState("idle");
+        return;
+      }
+      setState("error");
+    }
+    window.setTimeout(() => setState("idle"), 2_000);
   }
 
   return (
@@ -58,19 +120,18 @@ export function AnalysisHeader({ pair, timeframe, exchange, analyzedAt }: Analys
       <div className="ml-auto flex items-center gap-2">
         <button
           type="button"
-          onClick={shareAnalysis}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-3 px-3.5 py-2 text-[12px] font-semibold text-foreground transition-colors hover:border-border-strong"
+          onClick={() => void share()}
+          disabled={state === "working"}
+          title="Simpan chart dan trading plan sebagai gambar"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-3 px-3.5 py-2 text-[12px] font-semibold text-foreground transition-colors hover:border-border-strong disabled:opacity-60"
         >
-          <Share2 className="size-3.5" />
-          {shareLabel}
+          {state === "working" ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Share2 className="size-3.5" />
+          )}
+          {LABEL[state]}
         </button>
-        <Link
-          href="/analysis"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-accent-blue px-3.5 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
-        >
-          <Plus className="size-3.5" />
-          New Analysis
-        </Link>
       </div>
     </div>
   );
