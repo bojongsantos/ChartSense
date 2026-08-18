@@ -14,13 +14,20 @@ import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-cata
 import { Badge } from "@/presentation/ui/badge";
 import { CoinIcon } from "@/presentation/ui/coin-icon";
 import { Sparkline } from "@/presentation/ui/sparkline";
-import { formatCompact } from "@/shared/lib/format";
+import { formatCompact, formatPrice } from "@/shared/lib/format";
 
 interface WatchlistItem {
   id: string;
   symbol: string;
   enabled: boolean;
   position: number;
+  setupTimeframe?: string | null;
+  setupDirection?: string | null;
+  setupEntry?: number | null;
+  setupTarget1?: number | null;
+  setupStopLoss?: number | null;
+  setupConfidence?: number | null;
+  setupSavedAt?: string | null;
 }
 
 interface SignalsPayload {
@@ -92,6 +99,18 @@ function WatchlistCard({
   const change = market?.change24h;
   const trendColor = (change ?? 0) >= 0 ? "var(--color-positive)" : "var(--color-negative)";
 
+  const savedSetup =
+    item.setupEntry != null && item.setupDirection != null
+      ? {
+          long: item.setupDirection === "long",
+          entry: item.setupEntry,
+          target: item.setupTarget1,
+          stop: item.setupStopLoss,
+          confidence: item.setupConfidence,
+          timeframe: item.setupTimeframe,
+        }
+      : null;
+
   return (
     <article className="card overflow-hidden">
       <div className="hidden grid-cols-[minmax(180px,1.25fr)_minmax(140px,.9fr)_minmax(150px,.9fr)_minmax(120px,.75fr)_minmax(130px,.75fr)_68px] border-b border-border/60 bg-surface-2/40 text-[10px] font-semibold uppercase tracking-wide text-muted-2 md:grid">
@@ -150,6 +169,43 @@ function WatchlistCard({
           )}
         </div>
       </div>
+
+      {/* A pinned setup is the reason many coins are on this list at all, so
+          its levels belong on the card rather than only in the database. */}
+      {savedSetup && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border bg-surface-2/40 px-4 py-2.5 md:px-5">
+          <span
+            className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+              savedSetup.long
+                ? "border-positive/40 bg-positive/10 text-positive"
+                : "border-negative/40 bg-negative/10 text-negative"
+            }`}
+          >
+            {savedSetup.long ? "Long" : "Short"}
+          </span>
+          {savedSetup.timeframe && (
+            <span className="text-[10px] font-semibold text-muted-2">{savedSetup.timeframe}</span>
+          )}
+          <span className="text-[11px] text-muted">
+            Entry <span className="font-semibold tabular-nums text-foreground">${formatPrice(savedSetup.entry)}</span>
+          </span>
+          {savedSetup.target != null && (
+            <span className="text-[11px] text-muted">
+              Target <span className="font-semibold tabular-nums text-positive">${formatPrice(savedSetup.target)}</span>
+            </span>
+          )}
+          {savedSetup.stop != null && (
+            <span className="text-[11px] text-muted">
+              Stop <span className="font-semibold tabular-nums text-negative">${formatPrice(savedSetup.stop)}</span>
+            </span>
+          )}
+          {savedSetup.confidence != null && (
+            <span className="ml-auto text-[11px] font-bold tabular-nums text-accent-2">
+              {savedSetup.confidence}%
+            </span>
+          )}
+        </div>
+      )}
     </article>
   );
 }

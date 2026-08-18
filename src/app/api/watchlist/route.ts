@@ -15,7 +15,19 @@ export async function GET() {
     const items = await prisma.watchlistItem.findMany({
       where: { userId: user.id, position: { lt: limit } },
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-      select: { id: true, symbol: true, enabled: true, position: true },
+      select: {
+        id: true,
+        symbol: true,
+        enabled: true,
+        position: true,
+        setupTimeframe: true,
+        setupDirection: true,
+        setupEntry: true,
+        setupTarget1: true,
+        setupStopLoss: true,
+        setupConfidence: true,
+        setupSavedAt: true,
+      },
     });
     return Response.json({ items, plan: user.plan, limit });
   } catch (error) {

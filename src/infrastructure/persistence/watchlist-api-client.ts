@@ -5,6 +5,14 @@ export interface WatchlistItemDto {
   symbol: string;
   enabled: boolean;
   position: number;
+  /** Present only when the user pinned a setup to this symbol. */
+  setupTimeframe?: string | null;
+  setupDirection?: string | null;
+  setupEntry?: number | null;
+  setupTarget1?: number | null;
+  setupStopLoss?: number | null;
+  setupConfidence?: number | null;
+  setupSavedAt?: string | null;
 }
 
 export async function fetchWatchlistItems(): Promise<WatchlistItemDto[]> {

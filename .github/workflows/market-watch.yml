@@ -30,10 +30,14 @@ jobs:
           APP_URL: ${{ secrets.PRODUCTION_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          # Not configured yet is a setup step the owner has not reached, not a
+          # broken sweep. Failing here buried the real signal under dozens of
+          # identical red runs, so this case exits clean and states what is
+          # missing. A configured sweep that then fails still fails loudly.
           if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "PRODUCTION_URL atau CRON_SECRET belum diset sebagai repository secret."
-            echo "Sweep dilewati; alert tidak akan dievaluasi sampai keduanya diisi."
-            exit 1
+            echo "::warning::PRODUCTION_URL atau CRON_SECRET belum diset sebagai repository secret."
+            echo "Sweep dilewati. Alert belum akan dievaluasi sampai keduanya diisi."
+            exit 0
           fi
 
           status=$(curl -sS -o response.json -w "%{http_code}" \
