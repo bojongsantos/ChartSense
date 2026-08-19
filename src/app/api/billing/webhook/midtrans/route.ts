@@ -1,29 +1,28 @@
 import {
   amountsMatch,
+  decidePayment,
   extendPeriod,
-  resolvePaymentOutcome,
   shouldGrantAccess,
   shouldRevokeAccess,
   type PaymentStatus,
 } from "@/core/domain/billing/payment-rules";
-import { getBillingGateway } from "@/infrastructure/billing/midtrans-gateway";
+import { getBillingGateway } from "@/infrastructure/billing/gateway-factory";
 import { prisma } from "@/infrastructure/database/prisma";
 import { apiError, HttpError } from "@/shared/server/http";
 
 export async function POST(request: Request) {
   try {
     const payload: unknown = await request.json();
-    const notification = getBillingGateway().parseAndVerifyNotification(payload);
-    const payment = await prisma.payment.findUnique({ where: { orderId: notification.orderId } });
+    const event = getBillingGateway().parseAndVerifyNotification({
+      payload,
+      headers: request.headers,
+    });
+    const payment = await prisma.payment.findUnique({ where: { orderId: event.orderId } });
     if (!payment) throw new HttpError(404, "Order pembayaran tidak ditemukan.", "ORDER_NOT_FOUND");
-    if (!amountsMatch(notification.grossAmount, payment.amount)) {
+    if (!amountsMatch(event.paidAmount, payment.amount)) {
       throw new HttpError(400, "Nominal pembayaran tidak sesuai.", "AMOUNT_MISMATCH");
     }
-    const { status, successful } = resolvePaymentOutcome({
-      transactionStatus: notification.transactionStatus,
-      statusCode: notification.statusCode,
-      fraudStatus: notification.fraudStatus,
-    });
+    const { status, successful } = decidePayment(event.outcome);
     const storedStatus = payment.status as PaymentStatus;
 
     await prisma.$transaction(async (tx) => {
@@ -31,8 +30,8 @@ export async function POST(request: Request) {
         where: { id: payment.id },
         data: {
           status,
-          rawStatus: notification.transactionStatus,
-          providerTransactionId: notification.transactionId,
+          rawStatus: event.providerStatus,
+          providerTransactionId: event.providerTransactionId,
           paidAt: successful ? (payment.paidAt ?? new Date()) : payment.paidAt,
         },
       });

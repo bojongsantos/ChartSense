@@ -31,6 +31,18 @@ Handler memverifikasi `SHA512(order_id + status_code + gross_amount + server_key
 
 Konfigurasikan Notification URL tersebut pada Midtrans MAP. Gunakan Sandbox key sampai QA pembayaran selesai.
 
+### Menambah penyedia pembayaran
+
+`BillingGateway` menyatakan kebutuhan aplikasi, bukan kosakata satu penyedia. Callback dinormalkan menjadi `PaymentEvent` dengan `outcome` bernilai `paid`, `pending`, `underpaid`, `failed`, `expired`, `canceled`, atau `refunded`. Setiap adapter bertanggung jawab menerjemahkan status penyedianya menjadi tepat satu nilai tersebut, dan status yang tidak dikenali wajib menjadi `pending` alih-alih ditebak.
+
+`NotificationInput` membawa payload beserta header karena penyedia berbeda tempat menaruh tanda tangan. Midtrans menandatangani body, sedangkan sebagian penyedia lain memakai header.
+
+Pemilihan penyedia berada pada `infrastructure/billing/gateway-factory.ts` melalui `PAYMENT_PROVIDER`, sehingga menambah penyedia tidak menyentuh berkas penyedia lain. Nilai yang tidak dikenali menolak melakukan penagihan.
+
+Tiap adapter dipecah menjadi dua berkas. Berkas protokol memuat skema wire, tanda tangan, dan pemetaan status secara murni tanpa `server-only` sehingga dapat diuji langsung. Berkas gateway menangani jaringan dan menyimpan kunci server.
+
+`underpaid` sengaja disimpan sebagai `PENDING`. Uang masuk namun tidak sesuai nominal, sehingga pesanan bukan lunas dan bukan gagal, dan menuntut keputusan tersendiri. Belum ada adapter yang menghasilkannya; keadaan tersebut lazim pada pembayaran kripto.
+
 ## Alerts, notifikasi, dan riwayat setup
 
 `PriceAlert` menyimpan level harga per pengguna. Plan `FREE` memiliki lima alert aktif, `PREMIUM` memiliki seratus. Alert yang sudah `TRIGGERED` tidak menghitung kuota.

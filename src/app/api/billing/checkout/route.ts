@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { requireUser } from "@/infrastructure/auth/current-user";
-import { getBillingGateway } from "@/infrastructure/billing/midtrans-gateway";
+import { getBillingGateway } from "@/infrastructure/billing/gateway-factory";
 import { prisma } from "@/infrastructure/database/prisma";
 import { apiError, getRequestIp } from "@/shared/server/http";
 import { writeAuditLog } from "@/infrastructure/audit/audit-log";
+
+const CURRENCY = "IDR";
 
 export async function POST(request: Request) {
   try {
@@ -15,25 +17,31 @@ export async function POST(request: Request) {
       select: { orderId: true, amount: true, checkoutToken: true, checkoutUrl: true },
     });
     if (recent?.checkoutUrl && recent.checkoutToken) {
-      return Response.json({ orderId: recent.orderId, amount: recent.amount, currency: "IDR", token: recent.checkoutToken, redirectUrl: recent.checkoutUrl });
+      return Response.json({ orderId: recent.orderId, amount: recent.amount, currency: CURRENCY, token: recent.checkoutToken, redirectUrl: recent.checkoutUrl });
     }
+    const gateway = getBillingGateway();
     const orderId = `CS-${Date.now()}-${randomUUID().slice(0, 8)}`;
     const payment = await prisma.payment.create({
-      data: { orderId, userId: user.id, amount, provider: "midtrans" },
+      // Recorded from the gateway itself, so each charge says who processed it.
+      data: { orderId, userId: user.id, amount, provider: gateway.id },
       select: { id: true },
     });
     try {
-      const checkout = await getBillingGateway().createCheckout({
+      const checkout = await gateway.createCheckout({
         orderId,
         amount,
+        currency: CURRENCY,
         customer: { name: user.name, email: user.email },
       });
       await prisma.payment.update({
         where: { id: payment.id },
-        data: { checkoutToken: checkout.token, checkoutUrl: checkout.redirectUrl, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+        data: { checkoutToken: checkout.reference, checkoutUrl: checkout.redirectUrl, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
       });
-      await writeAuditLog({ actorId: user.id, action: "billing.checkout.create", entityType: "Payment", entityId: payment.id, metadata: { orderId, amount }, ipAddress: getRequestIp(request) });
-      return Response.json({ orderId, amount, currency: "IDR", ...checkout }, { status: 201 });
+      await writeAuditLog({ actorId: user.id, action: "billing.checkout.create", entityType: "Payment", entityId: payment.id, metadata: { orderId, amount, provider: gateway.id }, ipAddress: getRequestIp(request) });
+      return Response.json(
+        { orderId, amount, currency: CURRENCY, token: checkout.reference, redirectUrl: checkout.redirectUrl },
+        { status: 201 },
+      );
     } catch (error) {
       await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
       throw error;

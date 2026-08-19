@@ -1,165 +1,52 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import type { PaymentOutcomeKind } from "@/core/application/ports/billing-gateway";
 import {
   amountsMatch,
+  decidePayment,
   extendPeriod,
-  mapTransactionStatus,
-  midtransSignature,
+  grantsAccess,
   PREMIUM_PERIOD_DAYS,
-  resolvePaymentOutcome,
   shouldGrantAccess,
   shouldRevokeAccess,
-  signatureMatches,
+  statusForOutcome,
 } from "@/core/domain/billing/payment-rules";
-
-const SERVER_KEY = "SB-Mid-server-TESTKEY";
-const ORDER = { orderId: "ORDER-1", statusCode: "200", grossAmount: "99000.00" };
-
-/** Computed independently of the implementation, so the formula stays locked. */
-const GOLDEN_SIGNATURE =
-  "ae67959de26fff679549ef3fbdd6aaa98d3960e42a614196887e31dca798e34203ed0b9ff142db7a4a30fa0f0f616d2aa0e85849895a81d3c29abfd162c46981";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-test("the signature follows the order+status+amount+key formula", () => {
-  // Getting the field order wrong would reject every genuine notification, so
-  // the expected digest is pinned rather than derived from the same code.
-  assert.equal(midtransSignature({ ...ORDER, serverKey: SERVER_KEY }), GOLDEN_SIGNATURE);
-  assert.equal(GOLDEN_SIGNATURE.length, 128);
+test("every outcome maps to exactly one stored status", () => {
+  assert.equal(statusForOutcome("paid"), "SETTLED");
+  assert.equal(statusForOutcome("failed"), "FAILED");
+  assert.equal(statusForOutcome("expired"), "EXPIRED");
+  assert.equal(statusForOutcome("canceled"), "CANCELED");
+  assert.equal(statusForOutcome("refunded"), "REFUNDED");
+  assert.equal(statusForOutcome("pending"), "PENDING");
+  // Money arrived but not the agreed amount: neither complete nor failed, so
+  // it waits for a decision instead of quietly passing as paid.
+  assert.equal(statusForOutcome("underpaid"), "PENDING");
 });
 
-test("a genuine signature is accepted", () => {
-  const signature = midtransSignature({ ...ORDER, serverKey: SERVER_KEY });
-  assert.equal(signatureMatches(signature, GOLDEN_SIGNATURE), true);
-  // Different hex casing is still the same digest bytes.
-  assert.equal(signatureMatches(signature.toUpperCase(), GOLDEN_SIGNATURE), true);
-});
-
-test("a forged notification cannot pass verification", () => {
-  const expected = midtransSignature({ ...ORDER, serverKey: SERVER_KEY });
-
-  // Without the server key the digest cannot be produced.
-  const withoutKey = midtransSignature({ ...ORDER, serverKey: "guessed-key" });
-  assert.equal(signatureMatches(withoutKey, expected), false);
-
-  // Each signed field is genuinely covered: changing any one breaks the match.
-  const tampered = [
-    { ...ORDER, orderId: "ORDER-2" },
-    { ...ORDER, statusCode: "201" },
-    { ...ORDER, grossAmount: "1.00" },
+test("only a fully paid order opens access", () => {
+  assert.equal(grantsAccess("paid"), true);
+  const nonPaying: PaymentOutcomeKind[] = [
+    "pending",
+    "underpaid",
+    "failed",
+    "expired",
+    "canceled",
+    "refunded",
   ];
-  for (const fields of tampered) {
-    assert.equal(
-      signatureMatches(midtransSignature({ ...fields, serverKey: SERVER_KEY }), expected),
-      false,
-      "a tampered field must be rejected",
-    );
+  for (const outcome of nonPaying) {
+    assert.equal(grantsAccess(outcome), false, `"${outcome}" must not grant access`);
   }
 });
 
-test("malformed signatures are refused without throwing", () => {
-  const expected = midtransSignature({ ...ORDER, serverKey: SERVER_KEY });
-  // timingSafeEqual throws on unequal buffers, so these are filtered first.
-  assert.equal(signatureMatches("", expected), false);
-  assert.equal(signatureMatches("abcd", expected), false);
-  assert.equal(signatureMatches("z".repeat(128), expected), false);
-  assert.equal(signatureMatches(expected + "00", expected), false);
-});
-
-test("every Midtrans status maps to one stored status", () => {
-  assert.equal(mapTransactionStatus("settlement"), "SETTLED");
-  assert.equal(mapTransactionStatus("capture"), "SETTLED");
-  assert.equal(mapTransactionStatus("expire"), "EXPIRED");
-  assert.equal(mapTransactionStatus("cancel"), "CANCELED");
-  assert.equal(mapTransactionStatus("refund"), "REFUNDED");
-  assert.equal(mapTransactionStatus("partial_refund"), "REFUNDED");
-  assert.equal(mapTransactionStatus("deny"), "FAILED");
-  assert.equal(mapTransactionStatus("failure"), "FAILED");
-  assert.equal(mapTransactionStatus("pending"), "PENDING");
-  // An unrecognised status must not be guessed into granting or revoking.
-  assert.equal(mapTransactionStatus("something_new"), "PENDING");
-  assert.equal(mapTransactionStatus(""), "PENDING");
-});
-
-test("access is granted only when settlement, gateway and fraud all agree", () => {
-  assert.deepEqual(
-    resolvePaymentOutcome({
-      transactionStatus: "settlement",
-      statusCode: "200",
-      fraudStatus: "accept",
-    }),
-    { status: "SETTLED", successful: true },
-  );
-
-  // A card capture that cleared fraud screening is equally valid.
-  assert.deepEqual(
-    resolvePaymentOutcome({
-      transactionStatus: "capture",
-      statusCode: "200",
-      fraudStatus: "accept",
-    }),
-    { status: "SETTLED", successful: true },
-  );
-
-  // Midtrans omits fraud_status for payment types it does not screen.
-  assert.deepEqual(
-    resolvePaymentOutcome({ transactionStatus: "settlement", statusCode: "200" }),
-    { status: "SETTLED", successful: true },
-  );
-
-  assert.equal(
-    resolvePaymentOutcome({
-      transactionStatus: "settlement",
-      statusCode: "200",
-      fraudStatus: "ACCEPT",
-    }).successful,
-    true,
-    "fraud status casing must not decide whether someone gets a paid plan",
-  );
-});
-
-test("a settlement under fraud review is held, never recorded as paid", () => {
-  for (const fraudStatus of ["challenge", "deny", "CHALLENGE"]) {
-    // Held as PENDING: such a payment can still be reversed, and treating it
-    // as settled would hand out a paid plan that was never paid for.
-    assert.deepEqual(
-      resolvePaymentOutcome({
-        transactionStatus: "settlement",
-        statusCode: "200",
-        fraudStatus,
-      }),
-      { status: "PENDING", successful: false },
-      "a payment under fraud review must not grant access",
-    );
-  }
-});
-
-test("a settlement the gateway did not confirm is held as pending", () => {
-  for (const statusCode of ["201", "202", "400", "500", ""]) {
-    assert.deepEqual(
-      resolvePaymentOutcome({
-        transactionStatus: "settlement",
-        statusCode,
-        fraudStatus: "accept",
-      }),
-      { status: "PENDING", successful: false },
-      "only status code 200 may grant access",
-    );
-  }
-});
-
-test("non-settlement statuses are stored as-is and grant nothing", () => {
-  const cases = [
-    ["expire", "EXPIRED"],
-    ["cancel", "CANCELED"],
-    ["deny", "FAILED"],
-    ["refund", "REFUNDED"],
-  ] as const;
-  for (const [transactionStatus, expected] of cases) {
-    const outcome = resolvePaymentOutcome({ transactionStatus, statusCode: "200" });
-    assert.equal(outcome.status, expected);
-    assert.equal(outcome.successful, false);
-  }
+test("an underpaid order never counts as a sale", () => {
+  // Crypto buyers routinely send slightly less than asked after network fees,
+  // so this case has to be handled deliberately rather than rounded away.
+  assert.deepEqual(decidePayment("underpaid"), { status: "PENDING", successful: false });
+  assert.deepEqual(decidePayment("paid"), { status: "SETTLED", successful: true });
+  assert.deepEqual(decidePayment("refunded"), { status: "REFUNDED", successful: false });
 });
 
 test("a mismatched amount is rejected", () => {
@@ -205,11 +92,11 @@ test("an expired period restarts from now rather than from the old end", () => {
   assert.ok(restarted > now, "a lapsed subscriber must not receive a period already in the past");
 });
 
-test("a repeated settlement notification does not stack another period", () => {
-  // Midtrans retries notifications, so the same settlement arrives twice.
+test("a repeated settlement callback does not stack another period", () => {
+  // Providers retry callbacks, so the same settlement arrives twice.
   assert.equal(shouldGrantAccess("PENDING", true), true);
   assert.equal(shouldGrantAccess("SETTLED", true), false);
-  // Nothing is granted on a notification that did not settle.
+  // Nothing is granted on a callback that did not settle.
   assert.equal(shouldGrantAccess("PENDING", false), false);
   assert.equal(shouldGrantAccess("FAILED", false), false);
 });
