@@ -111,6 +111,14 @@ Perubahan yang menyentuh schema Prisma menuntut urutan yang tidak boleh dibalik:
 
 Ambil environment production ke lokasi di luar direktori proyek saat menjalankan migration. Berkas `.env.production.local` di dalam proyek akan ikut dibaca `next build`, dan Vercel mengembalikan variabel bertanda *Sensitive* secara harfiah sebagai `[SENSITIVE]` sehingga build lokal rusak.
 
+## Kesiapan konfigurasi
+
+`GET /api/health` melaporkan dua hal yang terpisah. Pemeriksaan layanan eksternal bersifat publik karena tidak mengungkap apa pun yang privat. Laporan kesiapan konfigurasi hanya diberikan kepada role `ADMIN`, sebab daftar variabel yang kosong memberi tahu pembacanya alur mana yang sedang tidak terlindungi atau tidak tersedia.
+
+Laporan menyebutkan nama variabel, tidak pernah nilainya, sehingga aman dicatat pada log. Setiap kemampuan menyatakan dampaknya bagi pengguna, bukan sekadar nama kunci yang hilang, karena kunci yang kosong tidak memunculkan galat apa pun sampai ada pengguna yang menabraknya.
+
+Kemampuan yang dipantau: database, autentikasi, pembayaran, email transaksional, dan sweep alert terjadwal.
+
 ## Operasional
 
 - Audit log merekam perubahan watchlist, admin, dan billing.

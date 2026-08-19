@@ -1,3 +1,13 @@
+import { assessReadiness, type CapabilityReport } from "@/core/domain/ops/readiness";
+import { getCurrentUser } from "@/infrastructure/auth/current-user";
+
+/** Names of the variables that currently hold a non-empty value. */
+function configuredKeys(): string[] {
+  return Object.entries(process.env)
+    .filter(([, value]) => typeof value === "string" && value.trim() !== "")
+    .map(([key]) => key);
+}
+
 interface HealthResult {
   id: string;
   name: string;
@@ -42,6 +52,13 @@ async function check(
 }
 
 export async function GET() {
+  // Which keys are absent tells an attacker which flows are unguarded or
+  // unavailable, so the configuration report is for admins only. The external
+  // service checks reveal nothing private and stay public.
+  const user = await getCurrentUser();
+  const configuration: CapabilityReport[] | undefined =
+    user?.role === "ADMIN" ? assessReadiness(configuredKeys()) : undefined;
+
   const results = await Promise.all([
     check("binance-spot", "Binance Spot", "data-api.binance.vision", [
       "https://data-api.binance.vision/api/v3/ping",
@@ -59,7 +76,7 @@ export async function GET() {
   ]);
 
   return Response.json(
-    { results, checkedAt: new Date().toISOString() },
+    { results, configuration, checkedAt: new Date().toISOString() },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
