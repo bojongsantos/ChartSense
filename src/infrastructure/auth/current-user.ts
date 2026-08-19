@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import type { CurrentUserDto, SubscriptionPlan, UserRole } from "@/core/domain/identity";
 import { auth } from "@/infrastructure/auth/auth";
 import { prisma } from "@/infrastructure/database/prisma";
+import { isSubscriptionExpired } from "@/core/domain/access/subscription";
 import { HttpError } from "@/shared/server/http";
 
 export const getCurrentUser = cache(async (): Promise<CurrentUserDto | null> => {
@@ -15,7 +16,11 @@ export const getCurrentUser = cache(async (): Promise<CurrentUserDto | null> => 
     select: { id: true, name: true, email: true, emailVerified: true, role: true, plan: true, subscription: { select: { currentPeriodEnd: true } } },
   });
   if (!record) return null;
-  const expired = record.plan === "PREMIUM" && record.subscription?.currentPeriodEnd && record.subscription.currentPeriodEnd <= new Date();
+  const expired = isSubscriptionExpired(
+    record.plan as SubscriptionPlan,
+    record.subscription?.currentPeriodEnd,
+    new Date(),
+  );
   if (expired) {
     await prisma.$transaction([
       prisma.user.update({ where: { id: record.id }, data: { plan: "FREE" } }),

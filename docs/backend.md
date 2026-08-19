@@ -9,6 +9,12 @@ Role dan paket tidak dicampur:
 - Plan `FREE` memiliki watchlist maksimal 20 simbol.
 - Plan `PREMIUM` memiliki watchlist maksimal 200 simbol dan fitur premium.
 
+Hak akses fitur diputuskan dalam tiga tingkat oleh `resolveFeatureAccess`. Grant per pengguna menang mutlak, termasuk ketika bernilai menolak, karena penolakan eksplisit adalah cara memutus satu akun tanpa menyentuh akun lain. Berikutnya gate global yang membuka atau menutup fitur bagi seluruh paket tanpa rilis. Bila keduanya tidak tercatat, bawaan statis paket yang berlaku.
+
+Premium yang masa berlakunya habis diturunkan pada permintaan berikutnya, bukan menunggu pekerjaan pembersihan. Premium tanpa periode sama sekali sengaja tidak pernah kedaluwarsa, karena itulah cara admin memberikan akses secara manual.
+
+Admin tidak dapat menurunkan role dirinya sendiri. Tanpa aturan tersebut seorang operator dapat mengunci dirinya keluar dari backoffice dalam satu klik, sementara hanya admin yang dapat mengembalikan role itu. Menurunkan admin lain tetap diizinkan dan tidak dapat mengosongkan ruang, sebab pelakunya selalu mempertahankan rolenya sendiri.
+
 Seluruh endpoint mutasi memeriksa session pada server. Resource watchlist selalu difilter berdasarkan `userId` untuk mencegah IDOR. Panel admin melakukan pemeriksaan role pada layout dan setiap route API.
 
 ## Auth

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rejectUserChange, subscriptionStatusForPlan } from "@/core/domain/access/admin-actions";
 import { requireAdmin } from "@/infrastructure/auth/current-user";
 import { prisma } from "@/infrastructure/database/prisma";
 import { writeAuditLog } from "@/infrastructure/audit/audit-log";
@@ -14,8 +15,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const admin = await requireAdmin();
     const { id } = await context.params;
     const input = await readJson(request, patchSchema);
-    if (id === admin.id && input.role === "USER") {
+    const rejection = rejectUserChange(admin.id, id, input);
+    if (rejection === "SELF_DEMOTION") {
       throw new HttpError(400, "Admin tidak dapat menurunkan role sendiri.", "SELF_DEMOTION");
+    }
+    if (rejection === "EMPTY_CHANGE") {
+      throw new HttpError(400, "Minimal satu perubahan diperlukan.", "EMPTY_CHANGE");
     }
     const user = await prisma.user.update({
       where: { id },
@@ -25,8 +30,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (input.plan) {
       await prisma.subscription.upsert({
         where: { userId: id },
-        create: { userId: id, plan: input.plan, status: input.plan === "PREMIUM" ? "ACTIVE" : "INACTIVE", provider: "admin" },
-        update: { plan: input.plan, status: input.plan === "PREMIUM" ? "ACTIVE" : "INACTIVE", provider: "admin" },
+        create: { userId: id, plan: input.plan, status: subscriptionStatusForPlan(input.plan), provider: "admin" },
+        update: { plan: input.plan, status: subscriptionStatusForPlan(input.plan), provider: "admin" },
       });
     }
     await writeAuditLog({ actorId: admin.id, action: "admin.user.update", entityType: "User", entityId: id, metadata: input, ipAddress: getRequestIp(request) });
