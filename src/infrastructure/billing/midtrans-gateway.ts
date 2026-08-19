@@ -1,7 +1,7 @@
 import "server-only";
 
-import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { midtransSignature, signatureMatches } from "@/core/domain/billing/payment-rules";
 import type { BillingGateway, CheckoutRequest, CheckoutResult, PaymentNotification } from "@/core/application/ports/billing-gateway";
 import { HttpError } from "@/shared/server/http";
 
@@ -48,12 +48,13 @@ export class MidtransGateway implements BillingGateway {
     const result = notificationSchema.safeParse(payload);
     if (!result.success) throw new HttpError(400, "Payload webhook tidak valid.", "INVALID_WEBHOOK");
     const data = result.data;
-    const expected = createHash("sha512")
-      .update(`${data.order_id}${data.status_code}${data.gross_amount}${this.serverKey}`)
-      .digest("hex");
-    const suppliedBuffer = Buffer.from(data.signature_key, "hex");
-    const expectedBuffer = Buffer.from(expected, "hex");
-    if (suppliedBuffer.length !== expectedBuffer.length || !timingSafeEqual(suppliedBuffer, expectedBuffer)) {
+    const expected = midtransSignature({
+      orderId: data.order_id,
+      statusCode: data.status_code,
+      grossAmount: data.gross_amount,
+      serverKey: this.serverKey,
+    });
+    if (!signatureMatches(data.signature_key, expected)) {
       throw new HttpError(401, "Tanda tangan webhook tidak valid.", "INVALID_SIGNATURE");
     }
     return {
