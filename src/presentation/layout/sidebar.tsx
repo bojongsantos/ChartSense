@@ -10,10 +10,14 @@ import {
   Layers,
   LayoutDashboard,
   Lock,
+  PanelLeftClose,
+  PanelLeftOpen,
   Star,
 } from "lucide-react";
 import { usePlan } from "@/presentation/features/access/plan-provider";
-import { BrandLockup, BRAND_NAME } from "@/presentation/ui/brand-logo";
+import { useSidebarState } from "@/presentation/hooks/use-ui-preference";
+import { BrandLockup, BrandMark, BRAND_NAME } from "@/presentation/ui/brand-logo";
+import { toggledSidebar } from "@/shared/lib/ui-preferences";
 
 interface NavItem {
   id: string;
@@ -35,18 +39,31 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { authenticated, plan, canAccess } = usePlan();
+  const { sidebar, setSidebar } = useSidebarState();
 
+  const collapsed = sidebar === "collapsed";
   const lockedItems = new Set<string>(canAccess("signals") ? [] : ["signals"]);
+  const toggleLabel = collapsed ? "Buka sidebar" : "Tutup sidebar";
 
   return (
-    <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-border bg-surface lg:flex">
-      <div className="flex h-16 items-center border-b border-border px-5">
+    <aside
+      className={`hidden h-full shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200 lg:flex ${
+        collapsed ? "w-16" : "w-60"
+      }`}
+    >
+      <div
+        className={`flex h-16 items-center border-b border-border ${
+          collapsed ? "justify-center px-2" : "px-5"
+        }`}
+      >
         <Link href="/" aria-label={`${BRAND_NAME} dashboard`}>
-          <BrandLockup height={30} />
+          {/* The mark alone when collapsed: the wordmark would be clipped
+              mid-name, which reads as a broken image rather than a compact one. */}
+          {collapsed ? <BrandMark size={30} /> : <BrandLockup height={30} />}
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <nav className={`flex-1 space-y-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
           const locked = lockedItems.has(item.id);
@@ -55,7 +72,12 @@ export function Sidebar() {
               key={item.id}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`group relative flex w-full items-center gap-3 rounded-lg py-2.5 pl-4 pr-3 text-[13px] transition-colors ${
+              // Collapsed, the icon is the only cue left, so the name moves
+              // into the tooltip rather than disappearing entirely.
+              title={collapsed ? item.label : undefined}
+              className={`group relative flex w-full items-center rounded-lg text-[13px] transition-colors ${
+                collapsed ? "justify-center px-0 py-2.5" : "gap-3 py-2.5 pl-4 pr-3"
+              } ${
                 active
                   ? "bg-accent/10 font-semibold text-foreground"
                   : "font-medium text-muted hover:bg-surface-3 hover:text-foreground"
@@ -72,26 +94,58 @@ export function Sidebar() {
               <item.icon
                 className={`size-4 shrink-0 ${active ? "text-accent-2" : "text-muted-2 group-hover:text-muted"}`}
               />
-              <span className="flex-1 truncate">{item.label}</span>
-              {locked && <Lock className="size-3.5 shrink-0 text-warning" />}
+              {!collapsed && (
+                <>
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {locked && <Lock className="size-3.5 shrink-0 text-warning" />}
+                </>
+              )}
+              {collapsed && locked && (
+                <Lock className="absolute right-1 top-1 size-3 text-warning" />
+              )}
+              {/* Collapsed, the link's only content is an icon, so the name
+                  has to reach assistive tech some other way. */}
+              {collapsed && <span className="sr-only">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-border p-4">
-        <div className="card p-4">
-          <p className="text-[12px] font-semibold">
-            {authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "Akun Coin Secret"}
-          </p>
-          <p className="mt-1 text-[11px] leading-snug text-muted">
-            {!authenticated
-              ? "Login untuk menyimpan watchlist dan mengaktifkan Premium."
-              : plan === "premium"
-                ? "Premium aktif. Seluruh fitur dan scanner tersedia."
-                : "Free aktif. Watchlist tersimpan pada akun Anda."}
-          </p>
-        </div>
+      <div className={`border-t border-border ${collapsed ? "p-2" : "p-4"}`}>
+        <button
+          type="button"
+          onClick={() => setSidebar(toggledSidebar(sidebar))}
+          title={toggleLabel}
+          aria-label={toggleLabel}
+          aria-expanded={!collapsed}
+          className={`flex w-full items-center rounded-lg border border-border bg-surface-3 text-[12px] font-semibold text-muted transition-colors hover:border-border-strong hover:text-foreground ${
+            collapsed ? "justify-center py-2.5" : "gap-2 px-3 py-2.5"
+          }`}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="size-4" />
+          ) : (
+            <>
+              <PanelLeftClose className="size-4" />
+              Tutup sidebar
+            </>
+          )}
+        </button>
+
+        {!collapsed && (
+          <div className="card mt-3 p-4">
+            <p className="text-[12px] font-semibold">
+              {authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "Akun Coin Secret"}
+            </p>
+            <p className="mt-1 text-[11px] leading-snug text-muted">
+              {!authenticated
+                ? "Login untuk menyimpan watchlist dan mengaktifkan Premium."
+                : plan === "premium"
+                  ? "Premium aktif. Seluruh fitur dan scanner tersedia."
+                  : "Free aktif. Watchlist tersimpan pada akun Anda."}
+            </p>
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -31,6 +31,7 @@ import { TIMEFRAMES, TIMEFRAME_SECONDS } from "@/core/domain/market/timeframe";
 import type { Candle, ChartData, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
 import { formatPrice } from "@/shared/lib/format";
 import { usePlan } from "@/presentation/features/access/plan-provider";
+import { useTheme } from "@/presentation/hooks/use-ui-preference";
 import type { HistoryState } from "@/presentation/hooks/use-live-analysis";
 
 /**
@@ -142,6 +143,28 @@ const ZONE_EXTEND_BARS = 12;
 const upColor = "#089981";
 const downColor = "#f23645";
 
+/**
+ * Chart chrome per theme.
+ *
+ * The candles keep their colours in both themes because green-up and red-down
+ * is a convention traders read faster than any palette. Only the furniture
+ * moves: grid lines drawn as translucent white vanish completely on a light
+ * background, and axis borders picked for a near-black page turn into heavy
+ * bars on a white one.
+ */
+const CHART_THEME = {
+  dark: {
+    text: "#9a9aab",
+    grid: "rgba(255,255,255,0.045)",
+    axis: "#2a2a3d",
+  },
+  light: {
+    text: "#55555f",
+    grid: "rgba(20,20,28,0.07)",
+    axis: "#d3d3e0",
+  },
+} as const;
+
 export function ChartPanel({
   data,
   timeframe,
@@ -214,6 +237,8 @@ export function ChartPanel({
     renderedRef.current = { first, length: candles.length };
   }, []);
 
+  const { theme } = useTheme();
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -221,20 +246,20 @@ export function ChartPanel({
     const chart = createChart(container, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#9a9aab",
+        textColor: CHART_THEME.dark.text,
         fontSize: 11,
         attributionLogo: true,
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.045)" },
-        horzLines: { color: "rgba(255,255,255,0.045)" },
+        vertLines: { color: CHART_THEME.dark.grid },
+        horzLines: { color: CHART_THEME.dark.grid },
       },
       rightPriceScale: {
-        borderColor: "#2a2a3d",
+        borderColor: CHART_THEME.dark.axis,
         scaleMargins: { top: 0.08, bottom: 0.1 },
       },
       timeScale: {
-        borderColor: "#2a2a3d",
+        borderColor: CHART_THEME.dark.axis,
         timeVisible: timeframe !== "1D",
         secondsVisible: false,
         rightOffset: 12,
@@ -289,6 +314,26 @@ export function ChartPanel({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recolours the chrome instead of rebuilding the chart. Recreating it would
+  // re-run setData over every loaded candle, which is the most expensive thing
+  // this component does — a theme switch would stall for seconds on a long
+  // history. Declared after the creation effect so that on mount the chart
+  // already exists and the palette lands before the first painted frame.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const palette = CHART_THEME[theme];
+    chart.applyOptions({
+      layout: { textColor: palette.text },
+      grid: {
+        vertLines: { color: palette.grid },
+        horzLines: { color: palette.grid },
+      },
+      rightPriceScale: { borderColor: palette.axis },
+      timeScale: { borderColor: palette.axis },
+    });
+  }, [theme]);
 
   useEffect(() => {
     const chart = chartRef.current;

@@ -23,6 +23,47 @@
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
+/*
+ * Light theme.
+ *
+ * `@theme` puts the dark palette on `:root`; these rules re-point the same
+ * variables, so every Tailwind utility that already reads them switches with
+ * no component changes. Only the tokens move — no utility is redefined.
+ *
+ * The accents are not merely reused. `--color-accent-2` is a text colour in
+ * dozens of places, and the dark theme's pale violet fails contrast on white,
+ * so the light theme takes a deeper one. The same goes for the semantic
+ * status colours, which are tuned for a dark surface.
+ */
+:root[data-theme="light"] {
+  --color-background: #f6f6fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f1f6;
+  --color-surface-3: #e7e7ef;
+  --color-border: #e2e2ec;
+  --color-border-strong: #c9c9d6;
+  --color-foreground: #14141c;
+  --color-muted: #55555f;
+  --color-muted-2: #7b7b88;
+  --color-accent: #6d47ff;
+  --color-accent-2: #6425d4;
+  --color-accent-blue: #2f56d8;
+  --color-positive: #12864a;
+  --color-positive-2: #0d6b3a;
+  --color-negative: #d01543;
+  --color-warning: #9a5b06;
+}
+
+:root[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #cfcfdb;
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #b6b6c6;
+}
+:root[data-theme="light"] * {
+  scrollbar-color: #cfcfdb transparent;
+}
+
 html,
 body {
   height: 100%;

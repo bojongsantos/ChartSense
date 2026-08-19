@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search, LogIn, LogOut, Settings, UserPlus } from "lucide-react";
 import { BrandMark, BRAND_NAME } from "@/presentation/ui/brand-logo";
+import { ThemeToggle } from "@/presentation/ui/theme-toggle";
 import { isValidBinanceSymbol, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
 import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
 import type { CurrentUserDto } from "@/core/domain/identity";
@@ -101,6 +102,7 @@ export function TopNav() {
       </form>
 
       <div className="ml-auto flex items-center gap-3">
+        <ThemeToggle />
         <NotificationBell authenticated={currentUser !== null} />
 
         {!userResolved ? (
