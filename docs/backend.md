@@ -91,6 +91,14 @@ Binance menjadi provider utama karena menyediakan websocket publik untuk data re
 
 `postinstall` menjalankan `prisma generate`. Migration production menggunakan `prisma migrate deploy`, bukan `migrate dev`.
 
+### Rilis
+
+Project Vercel terhubung ke repositori GitHub, sehingga push ke `main` memicu deployment production secara otomatis. Deploy manual melalui `npx vercel --prod` tetap tersedia bila diperlukan.
+
+Perubahan yang menyentuh schema Prisma menuntut urutan yang tidak boleh dibalik: jalankan migration terhadap database production terlebih dahulu, baru lakukan push. Kode yang meminta kolom atau tabel yang belum ada akan gagal pada halaman yang membutuhkannya.
+
+Ambil environment production ke lokasi di luar direktori proyek saat menjalankan migration. Berkas `.env.production.local` di dalam proyek akan ikut dibaca `next build`, dan Vercel mengembalikan variabel bertanda *Sensitive* secara harfiah sebagai `[SENSITIVE]` sehingga build lokal rusak.
+
 ## Operasional
 
 - Audit log merekam perubahan watchlist, admin, dan billing.
