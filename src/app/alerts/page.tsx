@@ -3,7 +3,7 @@ import { AlertsModule } from "@/presentation/features/alerts/alerts-module";
 import { AppShell } from "@/presentation/layout/app-shell";
 
 export const metadata: Metadata = {
-  title: "Alerts · ChartSense",
+  title: "Alerts · Coin Secret",
   description: "Pemberitahuan saat harga menyentuh level yang Anda tentukan.",
 };
 

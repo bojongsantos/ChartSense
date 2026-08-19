@@ -1,6 +1,6 @@
-# ChartSense
+# Coin Secret
 
-ChartSense adalah aplikasi analisis teknikal kripto berbasis aturan. Sistem menyediakan supply/demand scanner, watchlist pengguna, paket Free/Premium, panel admin, dan pembayaran Midtrans. ChartSense tidak mengeksekusi transaksi.
+Coin Secret adalah aplikasi analisis teknikal kripto berbasis aturan. Sistem menyediakan supply/demand scanner, watchlist pengguna, paket Free/Premium, panel admin, dan pembayaran Midtrans. Coin Secret tidak mengeksekusi transaksi.
 
 ## Stack
 
@@ -55,7 +55,7 @@ Password hanya berasal dari `SEED_USER_PASSWORD` dan `SEED_ADMIN_PASSWORD`. Jang
 - `/alerts` — alert harga per pengguna.
 - `/history` — riwayat setup tersimpan beserta hasilnya.
 - `/pricing` — perbandingan Free dan Premium.
-- `/tutorials` — panduan membaca keluaran ChartSense.
+- `/tutorials` — panduan membaca keluaran Coin Secret.
 - `/account` — profil, paket, dan checkout Premium.
 - `/admin` — backoffice khusus role ADMIN.
 - `/api/auth/*` — endpoint Better Auth.

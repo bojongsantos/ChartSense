@@ -1,6 +1,6 @@
-# ChartSense Architecture
+# Coin Secret Architecture
 
-ChartSense memakai Clean Architecture pragmatis untuk aplikasi Next.js.
+Coin Secret memakai Clean Architecture pragmatis untuk aplikasi Next.js.
 
 ## Struktur
 

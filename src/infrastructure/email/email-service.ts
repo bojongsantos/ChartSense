@@ -14,7 +14,7 @@ export async function sendTransactionalEmail(message: EmailMessage): Promise<voi
     if (process.env.NODE_ENV === "production") {
       throw new Error("RESEND_API_KEY dan EMAIL_FROM wajib untuk email production.");
     }
-    console.info(`[ChartSense email] ${message.subject} -> ${message.to}`);
+    console.info(`[Coin Secret email] ${message.subject} -> ${message.to}`);
     return;
   }
 

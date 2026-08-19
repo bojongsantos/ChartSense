@@ -1,4 +1,4 @@
-# ChartSense agent entrypoint
+# Coin Secret agent entrypoint
 
 File ini harus tetap berada di root agar tooling dapat menemukannya.
 

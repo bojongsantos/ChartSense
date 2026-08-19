@@ -9,11 +9,11 @@ import {
   History,
   Layers,
   LayoutDashboard,
-  LineChart,
   Lock,
   Star,
 } from "lucide-react";
 import { usePlan } from "@/presentation/features/access/plan-provider";
+import { BrandLockup, BRAND_NAME } from "@/presentation/ui/brand-logo";
 
 interface NavItem {
   id: string;
@@ -40,13 +40,10 @@ export function Sidebar() {
 
   return (
     <aside className="hidden h-full w-60 shrink-0 flex-col border-r border-border bg-surface lg:flex">
-      <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-blue">
-          <LineChart className="size-4.5 text-white" />
-        </span>
-        <span className="text-[17px] font-bold tracking-tight">
-          Chart<span className="gradient-text">Sense</span>
-        </span>
+      <div className="flex h-16 items-center border-b border-border px-5">
+        <Link href="/" aria-label={`${BRAND_NAME} dashboard`}>
+          <BrandLockup height={30} />
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
@@ -85,7 +82,7 @@ export function Sidebar() {
       <div className="border-t border-border p-4">
         <div className="card p-4">
           <p className="text-[12px] font-semibold">
-            {authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "ChartSense Account"}
+            {authenticated ? `Paket ${plan === "premium" ? "Premium" : "Free"}` : "Akun Coin Secret"}
           </p>
           <p className="mt-1 text-[11px] leading-snug text-muted">
             {!authenticated

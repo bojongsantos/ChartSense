@@ -10,7 +10,7 @@ export default function AppError({
   retry: () => void;
 }) {
   useEffect(() => {
-    console.error("ChartSense route error", error);
+    console.error("Coin Secret route error", error);
   }, [error]);
 
   return (

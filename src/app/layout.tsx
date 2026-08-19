@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChartSense — Crypto Technical Analysis",
+  title: "Coin Secret — Crypto Technical Analysis",
   description: "Rule-based crypto chart analysis, supply-demand detection, and market scanning.",
 };
 

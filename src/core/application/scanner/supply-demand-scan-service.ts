@@ -25,7 +25,6 @@ export interface SdScanHit {
   volume24h: number;
   zones: number;
   status?: string;
-  setupScore: number;
 }
 
 export interface SdMarketSnapshot {
@@ -95,7 +94,6 @@ export async function runSdScan(
           volume24h: ticker?.quoteVolume ?? 0,
           zones: sd.zones.length,
           status: setup.status,
-          setupScore: Math.round(setup.confidence * 0.82 + 8),
         };
         if (signalBucket(hit) === "demand") demand.push(hit);
         else supply.push(hit);
@@ -140,8 +138,10 @@ export function rankTopSetups(result: SdScanResult, limit = 5): TopSetup[] {
   const livePool = qualified.length > 0 ? qualified : all.filter(live);
   const ranked = livePool.length > 0 ? livePool : all;
 
+  // Confidence is the only score the detector produces; Setup Score used to be
+  // the same number rescaled, which made the ranking look like it weighed two
+  // signals when it never did.
   ranked.sort((a, b) => {
-    if (b.setupScore !== a.setupScore) return b.setupScore - a.setupScore;
     if (b.confidence !== a.confidence) return b.confidence - a.confidence;
     return b.volume24h - a.volume24h;
   });

@@ -8,7 +8,7 @@ import { sendTransactionalEmail } from "@/infrastructure/email/email-service";
 const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
-  appName: "ChartSense",
+  appName: "Coin Secret",
   baseURL: appUrl,
   secret: process.env.BETTER_AUTH_SECRET,
   trustedOrigins: [appUrl],
@@ -22,7 +22,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendTransactionalEmail({
         to: user.email,
-        subject: "Reset password ChartSense",
+        subject: "Reset password Coin Secret",
         html: `<p>Gunakan tautan berikut untuk mengatur ulang password:</p><p><a href="${url}">Reset password</a></p>`,
       });
     },
@@ -33,8 +33,8 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendTransactionalEmail({
         to: user.email,
-        subject: "Verifikasi email ChartSense",
-        html: `<p>Verifikasi akun ChartSense melalui tautan berikut:</p><p><a href="${url}">Verifikasi email</a></p>`,
+        subject: "Verifikasi email Coin Secret",
+        html: `<p>Verifikasi akun Coin Secret melalui tautan berikut:</p><p><a href="${url}">Verifikasi email</a></p>`,
       });
     },
   },

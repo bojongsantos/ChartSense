@@ -73,7 +73,7 @@ export function PricingModule({ priceIdr, authenticated, plan, periodEnd }: Pric
         <h1 className="text-2xl font-bold tracking-tight">Pricing</h1>
         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted">
           Satu paket berbayar, tanpa tingkatan tersembunyi. Seluruh analisis dihasilkan dari aturan
-          teknikal terprogram, dan ChartSense tidak mengeksekusi transaksi.
+          teknikal terprogram, dan Coin Secret tidak mengeksekusi transaksi.
         </p>
       </header>
 
@@ -185,7 +185,7 @@ export function PricingModule({ priceIdr, authenticated, plan, periodEnd }: Pric
           <p className="font-semibold text-foreground">Yang perlu Anda ketahui sebelum membayar</p>
           <ul className="mt-2 space-y-1.5">
             <li>
-              Pembayaran diproses Midtrans. ChartSense tidak menyimpan nomor kartu Anda.
+              Pembayaran diproses Midtrans. Coin Secret tidak menyimpan nomor kartu Anda.
             </li>
             <li>
               Premium berlaku {PREMIUM_PERIOD_DAYS} hari dan <strong>tidak</strong> diperpanjang
@@ -196,7 +196,7 @@ export function PricingModule({ priceIdr, authenticated, plan, periodEnd }: Pric
               History Anda tetap tersimpan.
             </li>
             <li>
-              ChartSense adalah alat analisis teknikal berbasis aturan. Ini bukan nasihat
+              Coin Secret adalah alat analisis teknikal berbasis aturan. Ini bukan nasihat
               investasi, dan tidak ada hasil yang dijamin.
             </li>
           </ul>

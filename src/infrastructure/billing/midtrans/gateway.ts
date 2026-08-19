@@ -39,7 +39,7 @@ export class MidtransGateway implements BillingGateway {
             id: "chartsense-premium-30d",
             price: input.amount,
             quantity: 1,
-            name: "ChartSense Premium 30 hari",
+            name: "Coin Secret Premium 30 hari",
           },
         ],
         customer_details: { first_name: input.customer.name, email: input.customer.email },

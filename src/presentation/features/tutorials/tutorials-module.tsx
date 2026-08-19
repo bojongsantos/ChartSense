@@ -58,7 +58,7 @@ const LESSONS: Lesson[] = [
       "Komponen mencakup kualitas zona, struktur tren, momentum, dan volume.",
       "Skor tinggi menunjukkan lebih banyak kondisi terpenuhi secara bersamaan.",
       "Skor bukan probabilitas keuntungan dan tidak menjamin hasil.",
-      "ChartSense memakai aturan teknikal terprogram, bukan machine learning.",
+      "Coin Secret memakai aturan teknikal terprogram, bukan machine learning.",
     ],
   },
   {
@@ -124,8 +124,8 @@ export function TutorialsModule() {
       <header className="max-w-2xl">
         <h1 className="text-lg font-bold">Tutorials</h1>
         <p className="mt-1 text-sm leading-relaxed text-muted">
-          Panduan singkat membaca keluaran ChartSense. Seluruh analisis dihasilkan dari aturan
-          teknikal terprogram. ChartSense tidak mengeksekusi transaksi dan tidak memberikan
+          Panduan singkat membaca keluaran Coin Secret. Seluruh analisis dihasilkan dari aturan
+          teknikal terprogram. Coin Secret tidak mengeksekusi transaksi dan tidak memberikan
           nasihat investasi.
         </p>
       </header>

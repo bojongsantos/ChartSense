@@ -41,7 +41,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <span className="text-xl font-bold">Chart<span className="gradient-text">Sense</span></span>
         </Link>
         <h1 className="text-xl font-bold">{mode === "login" ? "Masuk ke akun" : "Buat akun baru"}</h1>
-        <p className="mt-1 text-sm text-muted">{mode === "login" ? "Lanjutkan ke dashboard ChartSense." : "Paket Free aktif setelah registrasi."}</p>
+        <p className="mt-1 text-sm text-muted">{mode === "login" ? "Lanjutkan ke dashboard Coin Secret." : "Paket Free aktif setelah registrasi."}</p>
         <form onSubmit={submit} className="mt-6 space-y-4">
           {mode === "register" && <label className="block text-xs font-semibold">Nama<input required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:border-accent/60 focus:outline-none" /></label>}
           <label className="block text-xs font-semibold">Email<input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:border-accent/60 focus:outline-none" /></label>

@@ -3,8 +3,8 @@ import { TutorialsModule } from "@/presentation/features/tutorials/tutorials-mod
 import { AppShell } from "@/presentation/layout/app-shell";
 
 export const metadata: Metadata = {
-  title: "Tutorials · ChartSense",
-  description: "Panduan membaca zona supply & demand, setup, dan confidence score ChartSense.",
+  title: "Tutorials · Coin Secret",
+  description: "Panduan membaca zona supply & demand, setup, dan confidence score Coin Secret.",
 };
 
 export default function TutorialsPage() {

@@ -5,8 +5,8 @@ import { PricingModule } from "@/presentation/features/pricing/pricing-module";
 import { AppShell } from "@/presentation/layout/app-shell";
 
 export const metadata: Metadata = {
-  title: "Pricing · ChartSense",
-  description: "Perbandingan paket Free dan Premium ChartSense.",
+  title: "Pricing · Coin Secret",
+  description: "Perbandingan paket Free dan Premium Coin Secret.",
 };
 
 export default async function PricingPage() {

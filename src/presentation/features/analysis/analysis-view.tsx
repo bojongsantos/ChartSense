@@ -10,8 +10,6 @@ import { AnalysisHeader } from "@/presentation/features/analysis/analysis-header
 import { ChartPanel } from "@/presentation/features/analysis/chart-panel";
 import { PatternCard } from "@/presentation/features/analysis/pattern-card";
 import { ReasoningCard } from "@/presentation/features/analysis/reasoning-card";
-import { PerformanceCard } from "@/presentation/features/analysis/performance-card";
-import { SimilarPatternsCard } from "@/presentation/features/analysis/similar-patterns-card";
 
 interface AnalysisViewProps {
   data: AnalysisResult;
@@ -74,14 +72,7 @@ export function AnalysisView({
         />
       </div>
 
-      <div className="flex flex-col gap-6">
-        <ReasoningCard sections={data.reasoning} />
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <PerformanceCard data={data.performance} />
-          <SimilarPatternsCard data={data.similarPatterns} />
-        </div>
-      </div>
+      <ReasoningCard sections={data.reasoning} />
     </div>
   );
 }

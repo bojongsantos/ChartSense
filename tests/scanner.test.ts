@@ -34,7 +34,7 @@ test("concurrent mapper preserves order and respects the limit", async () => {
   assert.ok(peak <= 2);
 });
 
-function hit(symbol: string, score: number, confidence: number, strength: SdScanHit["strength"]): SdScanHit {
+function hit(symbol: string, confidence: number, strength: SdScanHit["strength"]): SdScanHit {
   return {
     symbol,
     base: symbol.replace(/USDT$/, ""),
@@ -50,13 +50,12 @@ function hit(symbol: string, score: number, confidence: number, strength: SdScan
     volume24h: 1_000,
     zones: 1,
     status: "Running",
-    setupScore: score,
   };
 }
 
 test("top setups prioritize live fresh zones and assign stable ranks", () => {
-  const demand = [hit("AAAUSDT", 70, 90, "tested"), hit("BBBUSDT", 65, 75, "fresh")];
-  const supply = [hit("CCCUSDT", 80, 85, "fresh")];
+  const demand = [hit("AAAUSDT", 90, "tested"), hit("BBBUSDT", 75, "fresh")];
+  const supply = [hit("CCCUSDT", 85, "fresh")];
   const result: SdScanResult = {
     demand,
     supply,
@@ -73,8 +72,8 @@ test("top setups prioritize live fresh zones and assign stable ranks", () => {
 });
 
 test("signal category follows Buy/Sell direction even when zone metadata is inconsistent", () => {
-  const sell = { ...hit("BTCUSDT", 80, 90, "fresh"), direction: "short" as const, zoneType: "demand" as const };
-  const buy = { ...hit("ETHUSDT", 80, 90, "fresh"), direction: "long" as const, zoneType: "supply" as const };
+  const sell = { ...hit("BTCUSDT", 90, "fresh"), direction: "short" as const, zoneType: "demand" as const };
+  const buy = { ...hit("ETHUSDT", 90, "fresh"), direction: "long" as const, zoneType: "supply" as const };
   assert.equal(signalBucket(sell), "supply");
   assert.equal(signalBucket(buy), "demand");
 });

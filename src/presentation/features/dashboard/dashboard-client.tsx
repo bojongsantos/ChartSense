@@ -14,7 +14,7 @@ import { useTopSetups } from "@/presentation/hooks/use-scanner";
 import { useWatchlistMembership } from "@/presentation/hooks/use-watchlist-membership";
 import { AppShell } from "@/presentation/layout/app-shell";
 import { WatchlistToggleButton } from "@/presentation/ui/watchlist-toggle-button";
-import { ChevronDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { CoinIcon } from "@/presentation/ui/coin-icon";
 
 export function DashboardClient() {
@@ -23,7 +23,6 @@ export function DashboardClient() {
   const [symbol, setSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("15m");
   const [range, setRange] = useState<HistoryRange>("3M");
-  const [showTop, setShowTop] = useState(false);
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_WATCHLIST);
   const [query, setQuery] = useState("");
 
@@ -56,13 +55,11 @@ export function DashboardClient() {
     if (!isValidBinanceSymbol(normalized)) return;
     setQuery(normalized.replace(/USDT$/i, ""));
     setSymbol(normalized);
-    setShowTop(false);
   };
 
   const selectFromSection = (value: string) => {
     setQuery(value.replace(/USDT$/i, "").toUpperCase());
     setSymbol(value.toUpperCase());
-    setShowTop(false);
   };
 
   const filtered = query.trim()
@@ -105,93 +102,10 @@ export function DashboardClient() {
             {!symbol && currentTop && (
               <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-1 text-[11px] font-semibold text-accent-2">
                 <Sparkles className="size-3" />
-                #1 today · Setup Score {currentTop.hit.setupScore}/100
+                #1 hari ini · Confidence {Math.round(currentTop.hit.confidence)}%
               </span>
             )}
 
-            {/* Top-5 setups dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowTop((v) => !v)}
-                className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-3 px-2.5 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:text-foreground"
-              >
-                Lihat top 5 setup lainnya
-                <ChevronDown className="size-3.5" />
-              </button>
-              {showTop && (
-                <div className="absolute left-0 top-full z-20 mt-1.5 w-80 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wide">Top 5 setup hari ini</p>
-                    <span className="text-[10px] text-muted-2">confidence</span>
-                  </div>
-
-                  {topLoading && (
-                    <div className="flex h-24 items-center justify-center text-muted-2">
-                      <Loader2 className="size-4 animate-spin" />
-                    </div>
-                  )}
-
-                  {!topLoading &&
-                    top.map((t) => {
-                      const up = t.hit.direction === "long";
-                      const activeRow = t.hit.symbol === activeSymbol;
-                      const confidence = Math.round(t.hit.confidence);
-                      return (
-                        <button
-                          key={t.hit.symbol}
-                          type="button"
-                          onClick={() => pick(t.hit.symbol)}
-                          className={`flex w-full items-center gap-2.5 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 ${
-                            activeRow ? "bg-accent/10" : "hover:bg-surface-2"
-                          }`}
-                        >
-                          <span className="w-4 shrink-0 text-[10px] font-bold tabular-nums text-muted-2">
-                            {t.rank}
-                          </span>
-                          <CoinIcon symbol={t.hit.symbol} size={26} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[12px] font-bold leading-tight">
-                              {t.hit.base}
-                            </span>
-                            <span className="block truncate text-[10px] leading-tight text-muted-2">
-                              {t.hit.symbol}
-                            </span>
-                          </span>
-                          <span
-                            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-                              up
-                                ? "border-positive/40 bg-positive/10 text-positive"
-                                : "border-negative/40 bg-negative/10 text-negative"
-                            }`}
-                          >
-                            {up ? "Long" : "Short"}
-                          </span>
-                          <span className="w-12 shrink-0 text-right">
-                            <span
-                              className={`block text-[13px] font-bold leading-none tabular-nums ${
-                                confidence >= 70
-                                  ? "text-positive"
-                                  : confidence >= 45
-                                    ? "text-warning"
-                                    : "text-muted"
-                              }`}
-                            >
-                              {confidence}%
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-
-                  {!topLoading && top.length === 0 && (
-                    <p className="px-3 py-6 text-center text-[11px] text-muted-2">
-                      Belum ada setup aktif.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
             {activeSymbol && <WatchlistToggleButton symbol={activeSymbol} membership={membership} nextPath="/" />}
           </div>
 
@@ -208,6 +122,77 @@ export function DashboardClient() {
             </span>
           )}
         </div>
+
+        {/* Top 5 setup — always visible; hiding it behind a toggle meant the
+            single most useful thing on the page cost a click to reach. */}
+        <section className="rounded-xl border border-border bg-surface p-3">
+          <div className="mb-2.5 flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-wide">Top 5 setup hari ini</p>
+            <span className="text-[10px] text-muted-2">diurutkan berdasarkan confidence</span>
+          </div>
+
+          {topLoading && (
+            <div className="flex h-20 items-center justify-center text-muted-2">
+              <Loader2 className="size-4 animate-spin" />
+            </div>
+          )}
+
+          {!topLoading && top.length === 0 && (
+            <p className="py-6 text-center text-[11px] text-muted-2">Belum ada setup aktif.</p>
+          )}
+
+          {!topLoading && top.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {top.map((t) => {
+                const up = t.hit.direction === "long";
+                const activeCard = t.hit.symbol === activeSymbol;
+                const confidence = Math.round(t.hit.confidence);
+                return (
+                  <button
+                    key={t.hit.symbol}
+                    type="button"
+                    onClick={() => pick(t.hit.symbol)}
+                    className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                      activeCard
+                        ? "border-accent/50 bg-accent/10"
+                        : "border-border bg-surface-2 hover:border-accent/30 hover:bg-surface-3"
+                    }`}
+                  >
+                    <span className="w-3 shrink-0 text-[10px] font-bold tabular-nums text-muted-2">
+                      {t.rank}
+                    </span>
+                    <CoinIcon symbol={t.hit.symbol} size={28} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] font-bold leading-tight">
+                        {t.hit.base}
+                      </span>
+                      <span
+                        className={`mt-0.5 inline-block rounded border px-1 py-px text-[9px] font-bold uppercase leading-none ${
+                          up
+                            ? "border-positive/40 bg-positive/10 text-positive"
+                            : "border-negative/40 bg-negative/10 text-negative"
+                        }`}
+                      >
+                        {up ? "Long" : "Short"}
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 text-[13px] font-bold leading-none tabular-nums ${
+                        confidence >= 70
+                          ? "text-positive"
+                          : confidence >= 45
+                            ? "text-warning"
+                            : "text-muted"
+                      }`}
+                    >
+                      {confidence}%
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         {(error || topError) && (
           <div className="rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-[12px] text-negative">

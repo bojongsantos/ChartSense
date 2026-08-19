@@ -15,7 +15,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // ChartSense keeps a concise discovery stub and the full rules under docs/.
+  // Coin Secret keeps a concise discovery stub and the full rules under docs/.
   agentRules: false,
   turbopack: {
     root: process.cwd(),

@@ -4,7 +4,6 @@ import type {
   PatternSummary,
   PerformanceStats,
   ReasoningSection,
-  SimilarPatternHit,
   Timeframe,
   TradeLevel,
 } from "@/core/domain/models";
@@ -72,6 +71,33 @@ export interface ReasoningContext {
   bias?: "bullish" | "bearish" | "neutral";
   support?: number;
   resistance?: number;
+  /** Zone quality, so the risk block can cite it instead of asserting it. */
+  zoneStrength?: "fresh" | "tested" | "broken";
+  zoneTouches?: number;
+}
+
+/**
+ * Average True Range over `period` bars.
+ *
+ * The risk block measures the stop against it: a stop tighter than one ATR sits
+ * inside ordinary bar-to-bar noise, which is a different kind of risk from a
+ * stop that is simply far away.
+ */
+export function averageTrueRange(candles: Candle[], period = 14): number {
+  if (candles.length < 2) return 0;
+  const window = candles.slice(-(period + 1));
+  let sum = 0;
+  let count = 0;
+  for (let i = 1; i < window.length; i++) {
+    const previousClose = window[i - 1].close;
+    sum += Math.max(
+      window[i].high - window[i].low,
+      Math.abs(window[i].high - previousClose),
+      Math.abs(window[i].low - previousClose),
+    );
+    count++;
+  }
+  return count ? sum / count : 0;
 }
 
 export function buildReasoning(candles: Candle[], ctx: ReasoningContext): ReasoningSection[] {
@@ -103,6 +129,74 @@ export function buildReasoning(candles: Candle[], ctx: ReasoningContext): Reason
     entry && target2 && stopLoss && Math.abs(entry - stopLoss) > 1e-9
       ? Math.abs(target2 - entry) / Math.abs(entry - stopLoss)
       : undefined;
+
+  // Risk Management is derived from this setup's own numbers rather than a
+  // fixed checklist. A generic list reads the same for a 0.3% stop and a 9%
+  // stop, which is exactly when the reader most needs the difference.
+  const atr = averageTrueRange(candles);
+  const riskPoints: string[] = [];
+
+  if (entry && stopLoss && Math.abs(entry - stopLoss) > 1e-9) {
+    const stopDistance = Math.abs(entry - stopLoss);
+    const stopPct = (stopDistance / entry) * 100;
+    const stopAtr = atr > 1e-9 ? stopDistance / atr : 0;
+
+    riskPoints.push(
+      `Stop loss **${formatPrice(stopLoss)}** berjarak **${stopPct.toFixed(2)}%** dari entry **${formatPrice(entry)}**.`,
+    );
+
+    if (stopAtr > 0) {
+      riskPoints.push(
+        stopAtr < 1
+          ? `Jarak stop hanya **${stopAtr.toFixed(1)}×ATR(14)**, masih di dalam ayunan normal, sehingga rawan tersentuh noise.`
+          : `Jarak stop **${stopAtr.toFixed(1)}×ATR(14)**, berada di luar ayunan normal pada timeframe ini.`,
+      );
+    }
+
+    // Position size that keeps one loss at 1% of capital.
+    const sizePct = Math.min(100, (1 / stopPct) * 100);
+    riskPoints.push(
+      `Dengan risiko **1% modal** per posisi, ukuran posisi maksimal **${sizePct.toFixed(1)}%** dari modal.`,
+    );
+  }
+
+  if (riskReward !== undefined) {
+    riskPoints.push(
+      riskReward >= 2
+        ? `Risk-Reward **1:${riskReward.toFixed(1)}** memenuhi ambang minimum 1:2.`
+        : `Risk-Reward **1:${riskReward.toFixed(1)}** berada di bawah ambang 1:2, sehingga setup ini menuntut win rate lebih tinggi.`,
+    );
+  }
+
+  if (ctx.zoneStrength) {
+    const touches = ctx.zoneTouches ?? 0;
+    riskPoints.push(
+      ctx.zoneStrength === "fresh"
+        ? `Zona belum pernah disentuh ulang, sehingga likuiditas di dalamnya masih utuh.`
+        : `Zona sudah tersentuh **${touches}×**; tiap sentuhan mengikis likuiditas yang tersisa dan menurunkan confidence ke **${ctx.confidence}%**.`,
+    );
+  }
+
+  if (entry) {
+    const gapPct = ((price - entry) / entry) * 100;
+    riskPoints.push(
+      Math.abs(gapPct) < 0.05
+        ? `Harga **${formatPrice(price)}** sudah berada tepat pada entry.`
+        : `Harga **${formatPrice(price)}** masih **${Math.abs(gapPct).toFixed(2)}%** ${gapPct > 0 ? "di atas" : "di bawah"} entry, jadi posisi dipasang sebagai limit order, bukan market.`,
+    );
+  }
+
+  if (stopLoss) {
+    riskPoints.push(
+      `Setup batal apabila candle ditutup ${isLong ? "di bawah" : "di atas"} **${formatPrice(stopLoss)}**.`,
+    );
+  }
+
+  if (riskPoints.length === 0) {
+    riskPoints.push(
+      `Belum ada level entry maupun stop yang valid, sehingga belum ada risiko yang dapat diukur.`,
+    );
+  }
 
   const summaryZone =
     ctx.sdName.includes("Demand") || ctx.sdName.includes("Demand Zone")
@@ -161,13 +255,7 @@ export function buildReasoning(candles: Candle[], ctx: ReasoningContext): Reason
     {
       id: "risk",
       title: "Risk Management",
-      points: [
-        `Tempatkan stop loss di luar zona.`,
-        `Setup invalid apabila harga melewati stop loss.`,
-        `Tunggu konfirmasi harga sebelum membuka posisi.`,
-        `Hindari penambahan posisi ketika harga melawan zona.`,
-        `Perhatikan likuiditas dan kondisi makro.`,
-      ],
+      points: riskPoints,
     },
   ];
 }
@@ -236,67 +324,6 @@ export function buildPerformance(candles: Candle[]): PerformanceStats {
   };
 }
 
-function correlation(a: number[], b: number[]): number {
-  const meanA = a.reduce((sum, value) => sum + value, 0) / a.length;
-  const meanB = b.reduce((sum, value) => sum + value, 0) / b.length;
-  let numerator = 0;
-  let denominatorA = 0;
-  let denominatorB = 0;
-  for (let i = 0; i < a.length; i++) {
-    const da = a[i] - meanA;
-    const db = b[i] - meanB;
-    numerator += da * db;
-    denominatorA += da * da;
-    denominatorB += db * db;
-  }
-  const denominator = Math.sqrt(denominatorA * denominatorB);
-  return denominator > 1e-12 ? numerator / denominator : 0;
-}
-
-function returnsFor(candles: Candle[], start: number, length: number): number[] {
-  const values: number[] = [];
-  for (let i = start + 1; i < start + length; i++) {
-    values.push(pct(candles[i].close, candles[i - 1].close));
-  }
-  return values;
-}
-
-export function buildSimilarPatterns(
-  candles: Candle[],
-  symbol: string,
-  timeframe: Timeframe,
-  direction: "long" | "short" = "long",
-): SimilarPatternHit[] {
-  const windowSize = 12;
-  const outcomeBars = 8;
-  if (candles.length < windowSize * 2 + outcomeBars) return [];
-
-  const targetStart = candles.length - windowSize;
-  const target = returnsFor(candles, targetStart, windowSize);
-  const candidates: SimilarPatternHit[] = [];
-
-  for (let start = 0; start + windowSize + outcomeBars < targetStart; start += 3) {
-    const sample = returnsFor(candles, start, windowSize);
-    const similarity = Math.round(((correlation(target, sample) + 1) / 2) * 100);
-    if (similarity < 55) continue;
-    const end = start + windowSize - 1;
-    const futureEnd = Math.min(candles.length - 1, end + outcomeBars);
-    const marketMove = pct(candles[futureEnd].close, candles[end].close);
-    const strategyReturn = direction === "short" ? -marketMove : marketMove;
-    candidates.push({
-      id: `${symbol.toLowerCase()}-sequence-${candles[start].time}`,
-      pair: symbol,
-      pattern: "Price Sequence",
-      timeframe,
-      confidence: similarity,
-      outcome: strategyReturn >= 0 ? "win" : "loss",
-      outcomePct: Number(strategyReturn.toFixed(2)),
-    });
-  }
-
-  return candidates.sort((a, b) => b.confidence - a.confidence).slice(0, 4);
-}
-
 export function buildAnalysisResult(
   symbol: string,
   base: string,
@@ -314,7 +341,6 @@ export function buildAnalysisResult(
   const sd = detectSupplyDemand(candles, symbol, timeframe, lockStore);
   const setup = sd.setup;
   const performance = buildPerformance(candles);
-  const similarPatterns = buildSimilarPatterns(candles, symbol, timeframe, setup?.direction);
 
   const zoneShape = sd.zones
     .slice(0, 8)
@@ -382,7 +408,6 @@ export function buildAnalysisResult(
         confidence: 0,
         trend: "neutral",
         status: "—",
-        setupScore: 0,
         probability: 0,
         riskLevel: "medium",
         timeframe,
@@ -400,8 +425,6 @@ export function buildAnalysisResult(
         support: sd.support,
         resistance: sd.resistance,
       }),
-      performance,
-      similarPatterns,
     };
   }
 
@@ -451,7 +474,6 @@ export function buildAnalysisResult(
     confidence: setup.confidence,
     trend: bullish ? "bullish" : "bearish",
     status,
-    setupScore: Math.round(setup.confidence * 0.82 + 8),
     probability: performance.totalTrades >= 3 ? performance.successRate : 0,
     riskLevel: setup.riskReward >= 2.2 ? "low" : setup.riskReward >= 1.3 ? "medium" : "high",
     timeframe,
@@ -482,8 +504,8 @@ export function buildAnalysisResult(
       bias: sd.bias,
       support: sd.support,
       resistance: sd.resistance,
+      zoneStrength: setup.zone.strength,
+      zoneTouches: setup.zone.touches,
     }),
-    performance,
-    similarPatterns,
   };
 }

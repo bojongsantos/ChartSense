@@ -22,8 +22,6 @@ export interface PlanCapability {
 const CAPABILITY_LABEL: Record<FeatureKey, string> = {
   entryBreakdown: "Level entry, target, dan invalidasi",
   convictionDetail: "Rincian confidence score",
-  historicalPerformance: "Rincian performa historis",
-  similarPatterns: "Pola serupa dari histori",
   scannerExtended: "Daftar peluang scanner penuh",
   signals: "Signals — setup supply & demand di seluruh watchlist",
 };
@@ -63,8 +61,6 @@ export const PLAN_CAPABILITIES: PlanCapability[] = [
   },
   forFeature("entryBreakdown"),
   forFeature("convictionDetail"),
-  forFeature("historicalPerformance"),
-  forFeature("similarPatterns"),
   forFeature("scannerExtended"),
   forFeature("signals"),
   {

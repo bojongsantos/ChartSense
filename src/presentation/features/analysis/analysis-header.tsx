@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type MutableRefObject } from "react";
-import { CalendarDays, Loader2, Share2 } from "lucide-react";
+import { CalendarDays, Download, Loader2 } from "lucide-react";
 import type { PairSummary, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
 import { composeShareImage } from "@/presentation/features/analysis/share-image";
 
@@ -19,7 +19,7 @@ interface AnalysisHeaderProps {
 type ShareState = "idle" | "working" | "done" | "error";
 
 const LABEL: Record<ShareState, string> = {
-  idle: "Share",
+  idle: "Download",
   working: "Menyiapkan…",
   done: "Tersimpan",
   error: "Gagal",
@@ -44,9 +44,9 @@ export function AnalysisHeader({
   });
 
   /**
-   * Exports the chart and its trade plan as one image. Shares the file
-   * directly where the platform supports it, and falls back to a download
-   * everywhere else.
+   * Exports the chart and its trade plan as one image and saves it straight to
+   * the device. The Web Share sheet used to intercept this, which turned a
+   * one-tap save into a target picker the user had to dismiss.
    */
   async function share() {
     const chart = captureRef.current?.();
@@ -69,29 +69,18 @@ export function AnalysisHeader({
       });
       if (!blob) throw new Error("Gambar gagal dibuat.");
 
-      const fileName = `${pair.symbol}-${timeframe}-chartsense.png`;
-      const file = new File([blob], fileName, { type: "image/png" });
-      const shareApi = navigator as unknown as {
-        canShare?: (data: ShareData) => boolean;
-        share?: (data: ShareData) => Promise<void>;
-      };
-
-      if (shareApi.share && shareApi.canShare?.({ files: [file] })) {
-        await shareApi.share({ files: [file], title: `${pair.symbol} · ChartSense` });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${pair.symbol}-${timeframe}-coin-secret.png`;
+      // Firefox ignores a click on a link that is not in the document, and the
+      // object URL must outlive the click for the download to start.
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
       setState("done");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        setState("idle");
-        return;
-      }
+    } catch {
       setState("error");
     }
     window.setTimeout(() => setState("idle"), 2_000);
@@ -122,13 +111,13 @@ export function AnalysisHeader({
           type="button"
           onClick={() => void share()}
           disabled={state === "working"}
-          title="Simpan chart dan trading plan sebagai gambar"
+          title="Unduh chart dan trading plan sebagai gambar"
           className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-3 px-3.5 py-2 text-[12px] font-semibold text-foreground transition-colors hover:border-border-strong disabled:opacity-60"
         >
           {state === "working" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            <Share2 className="size-3.5" />
+            <Download className="size-3.5" />
           )}
           {LABEL[state]}
         </button>

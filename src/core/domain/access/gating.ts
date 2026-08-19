@@ -2,8 +2,6 @@ import type { Plan } from "@/core/domain/models";
 
 export type FeatureKey =
   | "entryBreakdown"
-  | "historicalPerformance"
-  | "similarPatterns"
   | "convictionDetail"
   | "scannerExtended"
   | "signals";
@@ -13,8 +11,6 @@ export const PRO_FEATURES = PREMIUM_FEATURES;
 
 const FREE_FEATURES: FeatureKey[] = [
   "entryBreakdown",
-  "historicalPerformance",
-  "similarPatterns",
   "convictionDetail",
 ];
 
@@ -30,8 +26,6 @@ export function hasFeature(plan: Plan, feature: FeatureKey, override?: boolean):
 
 export const featureLabel: Record<FeatureKey, string> = {
   entryBreakdown: "Entry, targets & invalidation levels",
-  historicalPerformance: "Historical performance breakdown",
-  similarPatterns: "Similar patterns found",
   convictionDetail: "Confidence score breakdown",
   scannerExtended: "Full scanner opportunities list",
   signals: "Signals — live supply & demand setups across the watchlist",

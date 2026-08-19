@@ -56,7 +56,6 @@ export function PatternCard({ pattern, levels, riskReward, precision }: PatternC
           </div>
           <ProgressBar value={pattern.confidence} className="mt-1.5" />
         </div>
-        <Stat label="Setup Score" value={String(pattern.setupScore)} sub="/ 100" />
         <Stat
           label="Backtest Rate"
           value={pattern.probability ? `${pattern.probability}%` : "—"}

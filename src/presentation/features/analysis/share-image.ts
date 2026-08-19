@@ -15,7 +15,31 @@ const COLOR = {
   accent2: "#a78bfa",
   positive: "#22c55e",
   negative: "#f43f5e",
+  warning: "#f59e0b",
 } as const;
+
+/** Wordmark drawn into the footer so a shared image carries its source. */
+const LOGO_SRC = "/logo/logo-text.svg";
+const LOGO_HEIGHT = 22;
+const LOGO_WIDTH = Math.round(LOGO_HEIGHT * 4.4);
+
+/**
+ * Loads the wordmark, resolving to null instead of rejecting.
+ *
+ * The image is the point of the export; a logo that failed to decode is not a
+ * reason to hand the reader nothing.
+ */
+function loadLogo(): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.width = LOGO_WIDTH;
+    image.height = LOGO_HEIGHT;
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = LOGO_SRC;
+  });
+}
 
 const PANEL_WIDTH = 380;
 const PADDING = 24;
@@ -72,6 +96,25 @@ function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
   ctx.stroke();
 }
 
+/** Warning triangle drawn as vectors — emoji coverage in canvas is uneven. */
+function warningTriangle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  const half = size / 2;
+  ctx.save();
+  ctx.strokeStyle = COLOR.warning;
+  ctx.lineWidth = 1.4;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(x + half, y);
+  ctx.lineTo(x + size, y + size);
+  ctx.lineTo(x, y + size);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = COLOR.warning;
+  ctx.fillRect(x + half - 0.7, y + size * 0.38, 1.4, size * 0.32);
+  ctx.fillRect(x + half - 0.7, y + size * 0.78, 1.4, 1.4);
+  ctx.restore();
+}
+
 function text(
   ctx: CanvasRenderingContext2D,
   value: string,
@@ -92,7 +135,8 @@ function text(
  * search, account state — so the picture carries only what a reader needs to
  * judge the setup.
  */
-export function composeShareImage(input: ShareImageInput): Promise<Blob | null> {
+export async function composeShareImage(input: ShareImageInput): Promise<Blob | null> {
+  const logo = await loadLogo();
   const scale = EXPORT_SCALE;
   const chartWidth = CHART_BOX_WIDTH;
   const chartHeight = CHART_BOX_HEIGHT;
@@ -113,7 +157,7 @@ export function composeShareImage(input: ShareImageInput): Promise<Blob | null> 
   canvas.width = Math.round(width * scale);
   canvas.height = Math.round(height * scale);
   const ctx = canvas.getContext("2d");
-  if (!ctx) return Promise.resolve(null);
+  if (!ctx) return null;
   ctx.scale(scale, scale);
 
   ctx.fillStyle = COLOR.background;
@@ -122,7 +166,7 @@ export function composeShareImage(input: ShareImageInput): Promise<Blob | null> 
   // Header: pair, interval, price and 24h move.
   const positive = input.change24h >= 0;
   text(ctx, input.symbol, PADDING, PADDING + 22, { size: 22, weight: "700" });
-  text(ctx, `${input.timeframe} · ChartSense`, PADDING, PADDING + 42, {
+  text(ctx, `${input.timeframe} · Coin Secret`, PADDING, PADDING + 42, {
     size: 12,
     color: COLOR.muted2,
   });
@@ -193,7 +237,6 @@ export function composeShareImage(input: ShareImageInput): Promise<Blob | null> 
   const tileH = 54;
   const stats: [string, string, string?][] = [
     ["CONFIDENCE", `${input.pattern.confidence}%`],
-    ["SETUP SCORE", String(input.pattern.setupScore), "/ 100"],
     ["BACKTEST RATE", input.pattern.probability ? `${input.pattern.probability}%` : "—"],
     ["RISK LEVEL", input.pattern.riskLevel],
   ];
@@ -248,13 +291,26 @@ export function composeShareImage(input: ShareImageInput): Promise<Blob | null> 
     align: "right",
   });
 
+  // Footer: the standing reminder on the left, the wordmark on the right.
+  const footerBaseline = height - PADDING + 6;
+  warningTriangle(ctx, PADDING, footerBaseline - 11, 12);
   text(
     ctx,
-    "Analisis teknikal berbasis aturan · bukan nasihat investasi",
-    PADDING,
-    height - PADDING + 6,
-    { size: 11, color: COLOR.muted2 },
+    "Selalu lakukan riset dan analisa ulang secara mandiri!",
+    PADDING + 18,
+    footerBaseline,
+    { size: 11, weight: "600", color: COLOR.warning },
   );
+
+  if (logo) {
+    ctx.drawImage(
+      logo,
+      width - PADDING - LOGO_WIDTH,
+      footerBaseline - LOGO_HEIGHT + 5,
+      LOGO_WIDTH,
+      LOGO_HEIGHT,
+    );
+  }
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }

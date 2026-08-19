@@ -55,7 +55,7 @@ export function HealthModule() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold tracking-tight">API Health</h2>
-          <p className="mt-0.5 text-[12px] text-muted">Status seluruh layanan eksternal ChartSense.</p>
+          <p className="mt-0.5 text-[12px] text-muted">Status seluruh layanan eksternal Coin Secret.</p>
         </div>
         <button
           type="button"

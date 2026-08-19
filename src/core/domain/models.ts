@@ -69,7 +69,6 @@ export interface PatternSummary {
   confidence: number;
   trend: Trend;
   status: string;
-  setupScore: number;
   probability: number;
   riskLevel: RiskLevel;
   timeframe: Timeframe;
@@ -106,16 +105,6 @@ export interface PerformanceStats {
   }[];
 }
 
-export interface SimilarPatternHit {
-  id: string;
-  pair: string;
-  pattern: string;
-  timeframe: Timeframe;
-  confidence: number;
-  outcome: "win" | "loss" | "pending";
-  outcomePct: number;
-}
-
 export interface AnalysisResult {
   pair: PairSummary;
   timeframe: Timeframe;
@@ -126,8 +115,6 @@ export interface AnalysisResult {
   levels: TradeLevel[];
   riskReward: number;
   reasoning: ReasoningSection[];
-  performance: PerformanceStats;
-  similarPatterns: SimilarPatternHit[];
 }
 
 export interface ScannerOpportunity {

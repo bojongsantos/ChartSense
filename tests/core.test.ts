@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildPerformance, buildSimilarPatterns, emaSeries, rsiSeries } from "@/core/domain/analysis/analysis-engine";
+import { buildPerformance, emaSeries, rsiSeries } from "@/core/domain/analysis/analysis-engine";
 import {
   buildRiskTargets,
   computeSetupStatus,
@@ -94,9 +94,4 @@ test("indicators and historical statistics remain finite", () => {
   assert.ok(performance.totalTrades >= 0 && performance.totalTrades <= maximumWalkForwardSamples);
   assert.ok(performance.successRate >= 0 && performance.successRate <= 100);
   assert.ok(Number.isFinite(performance.profitFactor));
-
-  const similar = buildSimilarPatterns(candles, "BTCUSDT", "15m");
-  assert.ok(similar.length <= 4);
-  assert.ok(similar.every((item) => item.confidence >= 55 && item.confidence <= 100));
-  assert.equal(new Set(similar.map((item) => item.id)).size, similar.length);
 });
