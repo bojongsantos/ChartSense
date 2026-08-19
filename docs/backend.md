@@ -52,7 +52,7 @@ Penjadwalan memakai dua sumber karena paket Vercel Hobby hanya mengizinkan satu 
 - `vercel.json` menjadwalkan satu sweep harian sebagai jaring pengaman.
 - `.github/workflows/market-watch.yml` memanggil endpoint yang sama setiap tiga puluh menit. Interval tersebut menjaga penggunaan tetap berada dalam kuota GitHub Actions gratis untuk repositori privat.
 
-Workflow memerlukan dua repository secret, yaitu `PRODUCTION_URL` dan `CRON_SECRET`, dan sengaja gagal secara nyaring bila keduanya kosong atau endpoint membalas non-2xx. Sweep yang berhenti diam-diam berarti alert tidak lagi dievaluasi tanpa ada yang mengetahui.
+Workflow memerlukan dua repository secret, yaitu `PRODUCTION_URL` dan `CRON_SECRET`. Bila salah satu belum diisi, workflow berhenti bersih disertai peringatan, karena kondisi belum terkonfigurasi merupakan langkah persiapan yang belum dijalankan dan bukan kerusakan. Setelah keduanya terisi, endpoint yang membalas non-2xx sengaja menggagalkan run secara nyaring: sweep yang berhenti diam-diam berarti alert tidak lagi dievaluasi tanpa ada yang mengetahui.
 
 Setelah proyek berpindah ke Vercel Pro, workflow tersebut dapat dihapus dan jadwal dikembalikan ke `vercel.json`.
 
