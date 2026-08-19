@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/infrastructure/auth/current-user";
 import { prisma } from "@/infrastructure/database/prisma";
+import { providerCopy } from "@/core/domain/billing/provider-copy";
+import { selectedPaymentProvider } from "@/infrastructure/billing/gateway-factory";
 import { PricingModule } from "@/presentation/features/pricing/pricing-module";
 import { AppShell } from "@/presentation/layout/app-shell";
 
@@ -28,6 +30,7 @@ export default async function PricingPage() {
         authenticated={user !== null}
         plan={user?.plan ?? null}
         periodEnd={subscription?.currentPeriodEnd?.toISOString() ?? null}
+        provider={providerCopy(selectedPaymentProvider())}
       />
     </AppShell>
   );

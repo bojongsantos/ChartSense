@@ -1,6 +1,7 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { PaymentEvent, PaymentOutcomeKind } from "@/core/application/ports/billing-gateway";
+import { hexDigestMatches } from "@/infrastructure/billing/signature";
 
 /**
  * Midtrans wire format and rules, kept free of network calls and secrets
@@ -34,17 +35,8 @@ export function midtransSignature(input: {
     .digest("hex");
 }
 
-/**
- * Constant-time comparison of two hex signatures. Length and alphabet are
- * checked first because timingSafeEqual throws on mismatched buffers.
- */
-export function signatureMatches(supplied: string, expected: string): boolean {
-  if (!/^[0-9a-fA-F]+$/.test(supplied) || supplied.length !== expected.length) return false;
-  const suppliedBuffer = Buffer.from(supplied, "hex");
-  const expectedBuffer = Buffer.from(expected, "hex");
-  if (suppliedBuffer.length !== expectedBuffer.length) return false;
-  return timingSafeEqual(suppliedBuffer, expectedBuffer);
-}
+/** Constant-time comparison, shared with every other provider adapter. */
+export const signatureMatches = hexDigestMatches;
 
 /**
  * Translates a Midtrans notification into the app's neutral outcome.

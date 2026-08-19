@@ -1,3 +1,5 @@
+import { DEFAULT_PAYMENT_PROVIDER } from "@/core/domain/billing/providers";
+
 export type ReadinessLevel = "ready" | "blocked";
 
 export interface CapabilityReport {
@@ -18,6 +20,20 @@ interface Capability {
   requires: string[];
   impact: string;
 }
+
+/**
+ * Variables each payment provider cannot charge without.
+ *
+ * Kept as data rather than read from the adapters so this module stays in the
+ * domain, and so a report can be produced for a provider this deployment is
+ * not currently using.
+ */
+const PAYMENT_PROVIDER_KEYS: Record<string, string[]> = {
+  midtrans: ["MIDTRANS_SERVER_KEY"],
+  nowpayments: ["NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET"],
+};
+
+
 
 /**
  * Capabilities that depend on configuration rather than on code.
@@ -41,15 +57,9 @@ const CAPABILITIES: Capability[] = [
     impact: "Pengguna tidak dapat masuk atau mendaftar.",
   },
   {
-    id: "payments",
-    name: "Pembayaran",
-    requires: ["MIDTRANS_SERVER_KEY"],
-    impact: "Checkout membalas 503 dan tidak ada yang dapat membeli Premium.",
-  },
-  {
     id: "email",
     name: "Email transaksional",
-    requires: ["RESEND_API_KEY", "EMAIL_FROM"],
+    requires: ["BREVO_API_KEY", "EMAIL_FROM"],
     impact: "Reset password gagal, dan verifikasi email tidak pernah terkirim.",
   },
   {
@@ -67,9 +77,25 @@ const CAPABILITIES: Capability[] = [
  * values themselves, so a report can be produced and logged without carrying
  * secrets along with it.
  */
-export function assessReadiness(presentKeys: Iterable<string>): CapabilityReport[] {
+export function assessReadiness(
+  presentKeys: Iterable<string>,
+  paymentProvider: string = DEFAULT_PAYMENT_PROVIDER,
+): CapabilityReport[] {
   const present = new Set(presentKeys);
-  return CAPABILITIES.map((capability) => {
+  // An unrecognised provider has no key list to check, so nothing would ever
+  // report as missing. Naming the variable itself keeps the report honest
+  // about a deployment that cannot charge at all.
+  const paymentKeys = PAYMENT_PROVIDER_KEYS[paymentProvider] ?? ["PAYMENT_PROVIDER"];
+  const capabilities: Capability[] = [
+    ...CAPABILITIES,
+    {
+      id: "payments",
+      name: `Pembayaran (${paymentProvider})`,
+      requires: paymentKeys,
+      impact: "Checkout membalas 503 dan tidak ada yang dapat membeli Premium.",
+    },
+  ];
+  return capabilities.map((capability) => {
     const missing = capability.requires.filter((key) => !present.has(key));
     return {
       id: capability.id,

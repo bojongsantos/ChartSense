@@ -5,12 +5,14 @@ import Link from "next/link";
 import { Check, Crown, Loader2, Minus, ShieldCheck } from "lucide-react";
 import { PLAN_CAPABILITIES, PREMIUM_PERIOD_DAYS } from "@/core/domain/access/plan-catalog";
 import type { SubscriptionPlan } from "@/core/domain/identity";
+import type { ProviderCopy } from "@/core/domain/billing/provider-copy";
 
 interface PricingModuleProps {
   priceIdr: number;
   authenticated: boolean;
   plan: SubscriptionPlan | null;
   periodEnd: string | null;
+  provider: ProviderCopy;
 }
 
 const priceFormatter = new Intl.NumberFormat("id-ID", {
@@ -41,7 +43,7 @@ function CapabilityValue({ value, strong }: { value: string | boolean; strong?: 
   );
 }
 
-export function PricingModule({ priceIdr, authenticated, plan, periodEnd }: PricingModuleProps) {
+export function PricingModule({ priceIdr, authenticated, plan, periodEnd, provider }: PricingModuleProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isPremium = plan === "PREMIUM";
@@ -138,7 +140,7 @@ export function PricingModule({ priceIdr, authenticated, plan, periodEnd }: Pric
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-accent-blue px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 {loading && <Loader2 className="size-4 animate-spin" />}
-                Upgrade melalui Midtrans
+                Upgrade melalui {provider.name}
               </button>
             )}
             {error && <p className="mt-2 text-center text-[11px] text-negative">{error}</p>}
@@ -185,7 +187,7 @@ export function PricingModule({ priceIdr, authenticated, plan, periodEnd }: Pric
           <p className="font-semibold text-foreground">Yang perlu Anda ketahui sebelum membayar</p>
           <ul className="mt-2 space-y-1.5">
             <li>
-              Pembayaran diproses Midtrans. Coin Secret tidak menyimpan nomor kartu Anda.
+              {provider.assurance}
             </li>
             <li>
               Premium berlaku {PREMIUM_PERIOD_DAYS} hari dan <strong>tidak</strong> diperpanjang

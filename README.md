@@ -1,14 +1,14 @@
 # Coin Secret
 
-Coin Secret adalah aplikasi analisis teknikal kripto berbasis aturan. Sistem menyediakan supply/demand scanner, watchlist pengguna, paket Free/Premium, panel admin, dan pembayaran Midtrans. Coin Secret tidak mengeksekusi transaksi.
+Coin Secret adalah aplikasi analisis teknikal kripto berbasis aturan. Sistem menyediakan supply/demand scanner, watchlist pengguna, paket Free/Premium, panel admin, dan pembayaran. Coin Secret tidak mengeksekusi transaksi.
 
 ## Stack
 
 - Next.js 16 App Router dan React 19.
 - PostgreSQL 17 dan Prisma ORM 7.
 - Better Auth untuk email/password, session database, verifikasi, dan reset password.
-- Midtrans Snap untuk pembayaran Premium 30 hari.
-- Resend untuk email transaksional production.
+- Midtrans Snap atau NOWPayments untuk pembayaran Premium 30 hari, dipilih lewat `PAYMENT_PROVIDER`.
+- Brevo untuk email transaksional production.
 
 ## Struktur
 
@@ -62,7 +62,7 @@ Password hanya berasal dari `SEED_USER_PASSWORD` dan `SEED_ADMIN_PASSWORD`. Jang
 - `/api/watchlist/*` — CRUD watchlist dengan ownership check.
 - `/api/alerts/*`, `/api/notifications/*`, `/api/history/*` — CRUD dengan ownership check.
 - `/api/cron/market-watch` — evaluasi alert dan setup, dilindungi `CRON_SECRET`.
-- `/api/billing/*` — checkout, histori, dan webhook Midtrans.
+- `/api/billing/*` — checkout, histori, dan webhook tiap penyedia pembayaran.
 - `/api/admin/*` — user, role, plan, feature gate, audit, dan statistik.
 
 ## Chart

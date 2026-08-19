@@ -1,4 +1,5 @@
 import { assessReadiness, type CapabilityReport } from "@/core/domain/ops/readiness";
+import { selectedPaymentProvider } from "@/infrastructure/billing/gateway-factory";
 import { getCurrentUser } from "@/infrastructure/auth/current-user";
 
 /** Names of the variables that currently hold a non-empty value. */
@@ -57,7 +58,7 @@ export async function GET() {
   // service checks reveal nothing private and stay public.
   const user = await getCurrentUser();
   const configuration: CapabilityReport[] | undefined =
-    user?.role === "ADMIN" ? assessReadiness(configuredKeys()) : undefined;
+    user?.role === "ADMIN" ? assessReadiness(configuredKeys(), selectedPaymentProvider()) : undefined;
 
   const results = await Promise.all([
     check("binance-spot", "Binance Spot", "data-api.binance.vision", [

@@ -11,13 +11,13 @@ const ALL_KEYS = [
   "BETTER_AUTH_SECRET",
   "BETTER_AUTH_URL",
   "MIDTRANS_SERVER_KEY",
-  "RESEND_API_KEY",
+  "BREVO_API_KEY",
   "EMAIL_FROM",
   "CRON_SECRET",
 ];
 
-function reportFor(id: string, present: string[]) {
-  const report = assessReadiness(present).find((item) => item.id === id);
+function reportFor(id: string, present: string[], provider?: string) {
+  const report = assessReadiness(present, provider).find((item) => item.id === id);
   assert.ok(report, `no report for ${id}`);
   return report;
 }
@@ -54,6 +54,31 @@ test("a missing payment key is reported as blocking sales", () => {
   // Unrelated capabilities must not be dragged down with it.
   assert.equal(reportFor("alerts", withoutPayments).level, "ready");
   assert.equal(reportFor("database", withoutPayments).level, "ready");
+});
+
+test("the payment report follows the provider the deployment actually charges with", () => {
+  // Switching providers must move the report with it. Otherwise the panel
+  // keeps demanding a key nobody uses while staying silent about the two the
+  // active provider cannot charge without.
+  const crypto = reportFor("payments", ALL_KEYS, "nowpayments");
+  assert.equal(crypto.level, "blocked");
+  assert.deepEqual(crypto.missing, ["NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET"]);
+  assert.match(crypto.name, /nowpayments/);
+
+  const configured = [...ALL_KEYS, "NOWPAYMENTS_API_KEY", "NOWPAYMENTS_IPN_SECRET"];
+  assert.equal(reportFor("payments", configured, "nowpayments").level, "ready");
+
+  // Midtrans keys are irrelevant to a crypto deployment and must not block it.
+  const cryptoOnly = configured.filter((key) => key !== "MIDTRANS_SERVER_KEY");
+  assert.equal(reportFor("payments", cryptoOnly, "nowpayments").level, "ready");
+});
+
+test("an unsupported provider blocks on the variable that selected it", () => {
+  // With no key list to check, a typo would otherwise report as fully ready
+  // while every checkout answers 503.
+  const report = reportFor("payments", ALL_KEYS, "stripe");
+  assert.equal(report.level, "blocked");
+  assert.deepEqual(report.missing, ["PAYMENT_PROVIDER"]);
 });
 
 test("email needs both of its keys before it counts as ready", () => {

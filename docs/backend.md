@@ -21,11 +21,25 @@ Seluruh endpoint mutasi memeriksa session pada server. Resource watchlist selalu
 
 Better Auth menyimpan user, credential account, session, verification token, dan rate limit di PostgreSQL. Cookie session memakai `HttpOnly`, `SameSite=Lax`, dan `Secure` pada production. Password minimal 10 karakter dan session berlaku tujuh hari.
 
-Aktifkan `REQUIRE_EMAIL_VERIFICATION=true` setelah Resend terkonfigurasi. Reset password mencabut session lain.
+Aktifkan `REQUIRE_EMAIL_VERIFICATION=true` setelah email terkonfigurasi. Reset password mencabut session lain.
 
-## Billing Midtrans
+## Email transaksional
+
+Pengiriman memakai Brevo melalui `BREVO_API_KEY` dan `EMAIL_FROM`, dengan `EMAIL_FROM_NAME` bersifat opsional. Brevo dipilih karena memverifikasi satu alamat pengirim lewat tautan di inbox, sehingga deployment tanpa domain sendiri tetap dapat mengirim. Penyedia yang mewajibkan record DNS tidak dapat dipakai selama aplikasi masih berjalan di subdomain milik platform hosting.
+
+Di luar production, kunci yang kosong mencetak log alih-alih mengirim, agar alur daftar dan reset password tetap dapat dijalankan secara lokal tanpa akun email apa pun. Pada production keadaan tersebut melempar galat, sebab tautan reset yang diam-diam tidak pernah terkirim tampak persis seperti reset yang berhasil bagi orang yang menunggunya.
+
+Kegagalan kiriman melaporkan `code` dan `message` dari Brevo, bukan sekadar status HTTP. Pengirim yang belum diverifikasi adalah kegagalan pertama yang paling mungkin ditemui operator, dan hanya body respons yang menyebutkannya.
+
+Berkas dipecah dua seperti adapter pembayaran: `infrastructure/email/brevo.ts` memuat bentuk payload dan pemetaan galat secara murni sehingga dapat diuji langsung, sedangkan `email-service.ts` menangani jaringan dan menyimpan kunci.
+
+## Billing
 
 Checkout menentukan harga dari `PREMIUM_PRICE_IDR` pada server. Browser tidak dapat menentukan nominal atau mengaktifkan paket.
+
+`PAYMENT_PROVIDER` memilih penyedia yang menagih. Nilai yang tidak dikenali menolak melakukan penagihan alih-alih jatuh ke penyedia yang tidak diminta operator.
+
+### Midtrans
 
 Webhook production:
 
@@ -37,17 +51,43 @@ Handler memverifikasi `SHA512(order_id + status_code + gross_amount + server_key
 
 Konfigurasikan Notification URL tersebut pada Midtrans MAP. Gunakan Sandbox key sampai QA pembayaran selesai.
 
+### NOWPayments
+
+Memerlukan `NOWPAYMENTS_API_KEY` dan `NOWPAYMENTS_IPN_SECRET`. Keduanya nilai berbeda: IPN secret dibuat terpisah pada Settings > Payments > Instant Payment Notifications. Callback URL yang didaftarkan di sana:
+
+```text
+https://DOMAIN/api/billing/webhook/nowpayments
+```
+
+`BETTER_AUTH_URL` dipakai sebagai origin publik untuk menyusun callback URL dan halaman kembali, sehingga adapter menolak berjalan bila variabel itu kosong.
+
+Checkout memakai endpoint invoice, bukan endpoint payment, agar NOWPayments yang menyediakan pemilih koin beserta layar alamat dan QR. Membangunnya di dalam aplikasi berarti menyusun ulang kuotasi yang kedaluwarsa, kurs berjalan, dan penghitung konfirmasi untuk setiap koin.
+
+Tanda tangan IPN berupa HMAC-SHA512 atas payload yang kuncinya diurutkan lalu diserialisasi ulang, dikirim pada header `x-nowpayments-sig`. Serialisasi mengikuti contoh resmi NOWPayments, yaitu `JSON.stringify(payload, Object.keys(payload).sort())`. Bentuk tersebut menyaring kunci pada seluruh tingkat, bukan hanya tingkat teratas; itu keganjilan, tetapi menyimpang darinya akan menolak setiap callback yang sah.
+
+Pemetaan status yang perlu diperhatikan:
+
+- `finished` adalah satu-satunya status yang membuka akses.
+- `confirmed` **bukan** lunas. NOWPayments menandainya setelah konfirmasi on-chain cukup namun sebelum dana disetorkan ke merchant.
+- `partially_paid` menjadi `underpaid`. Pembeli kripto lazim mengirim sedikit kurang karena biaya dompet dipotong dari nominal atau kurs bergerak antara kuotasi dan broadcast. Uangnya benar-benar masuk, sehingga pesanan bukan lunas dan bukan gagal.
+
+Event melaporkan `price_amount`, bukan `actually_paid`. Pesanan disimpan dalam mata uang toko sedangkan `actually_paid` adalah kuantitas kripto, sehingga membandingkannya dengan total pesanan akan menolak setiap pembayaran yang sah. Kekurangan bayar dibawa oleh status, bukan oleh nominal.
+
+Satu hal yang belum dapat dipastikan tanpa akun: apakah NOWPayments menerima `idr` sebagai `price_currency`. Adapter meneruskan mata uang pesanan apa adanya, dan penolakan dari penyedia akan tampil beserta pesan aslinya pada respons checkout. Bila IDR ternyata tidak didukung, harga perlu dinyatakan dalam mata uang yang didukung, dan itu perubahan tersendiri karena `PREMIUM_PRICE_IDR` beserta penyimpanan `payment.amount` ikut terpengaruh.
+
 ### Menambah penyedia pembayaran
 
 `BillingGateway` menyatakan kebutuhan aplikasi, bukan kosakata satu penyedia. Callback dinormalkan menjadi `PaymentEvent` dengan `outcome` bernilai `paid`, `pending`, `underpaid`, `failed`, `expired`, `canceled`, atau `refunded`. Setiap adapter bertanggung jawab menerjemahkan status penyedianya menjadi tepat satu nilai tersebut, dan status yang tidak dikenali wajib menjadi `pending` alih-alih ditebak.
 
-`NotificationInput` membawa payload beserta header karena penyedia berbeda tempat menaruh tanda tangan. Midtrans menandatangani body, sedangkan sebagian penyedia lain memakai header.
+`NotificationInput` membawa payload beserta header karena penyedia berbeda tempat menaruh tanda tangan. Midtrans menandatangani body, NOWPayments memakai header.
 
-Pemilihan penyedia berada pada `infrastructure/billing/gateway-factory.ts` melalui `PAYMENT_PROVIDER`, sehingga menambah penyedia tidak menyentuh berkas penyedia lain. Nilai yang tidak dikenali menolak melakukan penagihan.
+Pemilihan penyedia berada pada `infrastructure/billing/gateway-factory.ts`, sehingga menambah penyedia tidak menyentuh berkas penyedia lain. Factory menerima nama penyedia secara eksplisit: setiap route webhook menyebut namanya sendiri, sebab callback harus diverifikasi oleh adapter yang menandatanganinya dan bukan oleh penyedia yang kebetulan sedang dipilih. Tanpa itu, mengganti `PAYMENT_PROVIDER` akan diam-diam menolak callback pesanan yang masih terbuka pada penyedia lama.
 
-Tiap adapter dipecah menjadi dua berkas. Berkas protokol memuat skema wire, tanda tangan, dan pemetaan status secara murni tanpa `server-only` sehingga dapat diuji langsung. Berkas gateway menangani jaringan dan menyimpan kunci server.
+Keputusan setelah verifikasi berada di `infrastructure/billing/notification-handler.ts` dan dipakai bersama oleh seluruh route webhook, karena mencocokkan pesanan, memeriksa nominal, menyimpan status, serta membuka atau mencabut akses tepat sekali adalah urusan aplikasi, bukan urusan penyedia. Nama penyedia pada baris subscription diambil dari gateway yang memverifikasi callback; menuliskannya secara harfiah akan mencatat pembayaran kripto atas nama pemroses kartu.
 
-`underpaid` sengaja disimpan sebagai `PENDING`. Uang masuk namun tidak sesuai nominal, sehingga pesanan bukan lunas dan bukan gagal, dan menuntut keputusan tersendiri. Belum ada adapter yang menghasilkannya; keadaan tersebut lazim pada pembayaran kripto.
+Tiap adapter dipecah menjadi dua berkas. Berkas protokol memuat skema wire, tanda tangan, dan pemetaan status secara murni tanpa `server-only` sehingga dapat diuji langsung. Berkas gateway menangani jaringan dan menyimpan kunci server. Perbandingan digest dipakai bersama melalui `infrastructure/billing/signature.ts`, sebab penyedia berbeda pada apa yang ditandatangani, tidak pada cara digest diperiksa.
+
+`underpaid` disimpan sebagai `PENDING`. Uang masuk namun tidak sesuai nominal, sehingga pesanan bukan lunas dan bukan gagal, dan menuntut keputusan tersendiri berupa refund, top-up, atau pelepasan manual.
 
 ## Alerts, notifikasi, dan riwayat setup
 
@@ -102,7 +142,7 @@ Binance menjadi provider utama karena menyediakan websocket publik untuk data re
 1. Tambahkan PostgreSQL pooled connection sebagai `DATABASE_URL`.
 2. Tambahkan `BETTER_AUTH_SECRET` acak minimal 32 byte.
 3. Atur `BETTER_AUTH_URL` ke domain production.
-4. Tambahkan Midtrans dan Resend environment variables.
+4. Tambahkan environment variable penyedia pembayaran dan Brevo.
 5. Tambahkan `CRON_SECRET` agar market watch dapat berjalan.
 6. Jalankan `npm run db:deploy` terhadap database production.
 7. Deploy aplikasi dan uji webhook Sandbox.
@@ -123,7 +163,7 @@ Ambil environment production ke lokasi di luar direktori proyek saat menjalankan
 
 Laporan menyebutkan nama variabel, tidak pernah nilainya, sehingga aman dicatat pada log. Setiap kemampuan menyatakan dampaknya bagi pengguna, bukan sekadar nama kunci yang hilang, karena kunci yang kosong tidak memunculkan galat apa pun sampai ada pengguna yang menabraknya.
 
-Kemampuan yang dipantau: database, autentikasi, pembayaran, email transaksional, dan sweep alert terjadwal.
+Kemampuan yang dipantau: database, autentikasi, email transaksional, sweep alert terjadwal, dan pembayaran. Laporan pembayaran mengikuti `PAYMENT_PROVIDER`, sehingga panel menuntut kunci penyedia yang benar-benar dipakai. Penyedia yang tidak dikenali dilaporkan terhalang pada `PAYMENT_PROVIDER` itu sendiri, sebab tanpa daftar kunci untuk diperiksa sebuah salah ketik akan tampak siap sepenuhnya sementara setiap checkout membalas 503.
 
 ## Operasional
 
