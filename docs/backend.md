@@ -73,7 +73,7 @@ Pemetaan status yang perlu diperhatikan:
 
 Event melaporkan `price_amount`, bukan `actually_paid`. Pesanan disimpan dalam mata uang toko sedangkan `actually_paid` adalah kuantitas kripto, sehingga membandingkannya dengan total pesanan akan menolak setiap pembayaran yang sah. Kekurangan bayar dibawa oleh status, bukan oleh nominal.
 
-Satu hal yang belum dapat dipastikan tanpa akun: apakah NOWPayments menerima `idr` sebagai `price_currency`. Adapter meneruskan mata uang pesanan apa adanya, dan penolakan dari penyedia akan tampil beserta pesan aslinya pada respons checkout. Bila IDR ternyata tidak didukung, harga perlu dinyatakan dalam mata uang yang didukung, dan itu perubahan tersendiri karena `PREMIUM_PRICE_IDR` beserta penyimpanan `payment.amount` ikut terpengaruh.
+NOWPayments menerima `idr` sebagai `price_currency`; hal ini diverifikasi pada 20 Agustus 2026 melalui checkout produksi, yang menampilkan kuotasi `0.00008136 BTC ~ IDR 99000`. Karena itu tidak diperlukan konversi mata uang, dan `amountsMatch` dapat membandingkan `price_amount` langsung terhadap `payment.amount` yang tersimpan dalam rupiah.
 
 ### Menambah penyedia pembayaran
 
