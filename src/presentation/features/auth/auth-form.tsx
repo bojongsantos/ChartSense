@@ -3,9 +3,10 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LineChart, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
 import { safeRedirectPath } from "@/shared/lib/safe-redirect";
+import { BrandLockup, BRAND_NAME } from "@/presentation/ui/brand-logo";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
@@ -34,11 +35,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
+    <main className="flex min-h-dvh items-center justify-center bg-background p-4 text-foreground">
       <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl">
-        <Link href="/" className="mb-6 flex items-center justify-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-blue"><LineChart className="size-5 text-white" /></span>
-          <span className="text-xl font-bold">Chart<span className="gradient-text">Sense</span></span>
+        <Link href="/" className="mb-6 flex items-center justify-center" aria-label={BRAND_NAME}>
+          <BrandLockup height={34} />
         </Link>
         <h1 className="text-xl font-bold">{mode === "login" ? "Masuk ke akun" : "Buat akun baru"}</h1>
         <p className="mt-1 text-sm text-muted">{mode === "login" ? "Lanjutkan ke dashboard Coin Secret." : "Paket Free aktif setelah registrasi."}</p>

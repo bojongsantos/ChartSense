@@ -8,11 +8,11 @@ import {
   LayoutDashboard,
   ListOrdered,
   Lock,
-  Settings2,
   Users,
   CreditCard,
   ScrollText,
 } from "lucide-react";
+import { BrandLockup } from "@/presentation/ui/brand-logo";
 
 const NAV = [
   { id: "overview", label: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -32,14 +32,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-dvh overflow-hidden bg-background text-foreground">
       <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-blue">
-            <Settings2 className="size-4.5 text-white" />
-          </span>
-          <span className="text-[17px] font-bold tracking-tight">
-            Chart<span className="gradient-text">Sense</span>
-            <span className="ml-1.5 rounded-md border border-border bg-surface-3 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent-2">
-              Admin
-            </span>
+          <BrandLockup height={26} />
+          <span className="rounded-md border border-border bg-surface-3 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-accent-2">
+            Admin
           </span>
         </div>
 
