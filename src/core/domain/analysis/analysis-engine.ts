@@ -119,7 +119,7 @@ export function buildReasoning(candles: Candle[], ctx: ReasoningContext): Reason
         summaryZone
           ? `Zona ${summaryZone} aktif pada ${ctx.pair ?? "aset"}. Arah setup ${isLong ? "long" : "short"}.`
           : `Belum terdapat zona supply atau demand yang valid.`,
-        summaryZone ? `Conviction **${ctx.confidence}%**.` : "",
+        summaryZone ? `Confidence **${ctx.confidence}%**.` : "",
         direction && entry
           ? `Entry **${formatPrice(entry)}**. Stop loss **${formatPrice(stopLoss ?? 0)}**.`
           : `Bias pasar ${biasLabel}.`,

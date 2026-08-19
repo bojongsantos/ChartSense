@@ -50,7 +50,7 @@ const LESSONS: Lesson[] = [
     ],
   },
   {
-    id: "conviction",
+    id: "confidence",
     icon: BookOpen,
     title: "Confidence score",
     summary: "Skor 0-100 hasil penjumlahan aturan teknikal, bukan prediksi.",
