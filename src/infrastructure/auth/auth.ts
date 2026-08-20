@@ -4,14 +4,25 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/infrastructure/database/prisma";
 import { sendTransactionalEmail } from "@/infrastructure/email/email-service";
+import { localIPv4Addresses } from "@/infrastructure/auth/local-addresses";
+import { resolveTrustedOrigins } from "@/shared/lib/trusted-origins";
 
 const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+const development = process.env.NODE_ENV !== "production";
 
 export const auth = betterAuth({
   appName: "Coin Secret",
   baseURL: appUrl,
   secret: process.env.BETTER_AUTH_SECRET,
-  trustedOrigins: [appUrl],
+  // A deployment can answer on more than one origin — the current domain and
+  // the one it was renamed from. Naming only `appUrl` here made every sign-in
+  // from the other domain fail as "Invalid origin".
+  trustedOrigins: resolveTrustedOrigins({
+    appUrl,
+    extra: process.env.TRUSTED_ORIGINS,
+    development,
+    lanAddresses: development ? localIPv4Addresses() : [],
+  }),
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,

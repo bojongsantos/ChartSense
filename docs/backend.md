@@ -23,6 +23,12 @@ Better Auth menyimpan user, credential account, session, verification token, dan
 
 Aktifkan `REQUIRE_EMAIL_VERIFICATION=true` setelah email terkonfigurasi. Reset password mencabut session lain.
 
+Origin yang boleh menggerakkan endpoint auth berasal dari `BETTER_AUTH_URL` ditambah `TRUSTED_ORIGINS` yang dipisah koma. Ini kendali CSRF, bukan daftar kemudahan: origin yang tercantum dapat mengirim permintaan sign-in dan ganti password dengan membawa cookie pengguna, sehingga daftarnya hanya disusun dari konfigurasi dan nilai yang bukan origin http(s) absolut dibuang, bukan diteruskan.
+
+Satu origin saja cukup selama aplikasi punya satu URL. Begitu domain kedua ditambahkan, setiap sign-in dari domain yang lain gagal dengan `Invalid origin` — galat yang menyebut CSRF padahal sebabnya konfigurasi. Karena itu domain lama yang masih dilayani wajib dicantumkan pada `TRUSTED_ORIGINS`.
+
+Di luar production, alias loopback beserta alamat LAN mesin itu sendiri ikut dipercaya, sebab `next dev` juga mengumumkan URL "Network" dan membukanya menghasilkan galat yang sama. Alamat LAN dibaca dari interface, bukan ditulis manual, karena nilainya berubah mengikuti jaringan yang sedang disambangi. Production tidak mendapat kelonggaran itu.
+
 ## Email transaksional
 
 Pengiriman memakai Brevo melalui `BREVO_API_KEY` dan `EMAIL_FROM`, dengan `EMAIL_FROM_NAME` bersifat opsional. Brevo dipilih karena memverifikasi satu alamat pengirim lewat tautan di inbox, sehingga deployment tanpa domain sendiri tetap dapat mengirim. Penyedia yang mewajibkan record DNS tidak dapat dipakai selama aplikasi masih berjalan di subdomain milik platform hosting.
