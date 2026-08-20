@@ -75,7 +75,7 @@ test("protective stops use confirmed swings and remain outside the zone", () => 
 });
 
 test("setup locks are isolated by symbol and timeframe", () => {
-  assert.equal(setupLockKey("BTCUSDT", "15m"), "chartsense:setup-lock:BTCUSDT:15m");
+  assert.equal(setupLockKey("BTCUSDT", "15m"), "coinsecret:setup-lock:BTCUSDT:15m");
   assert.notEqual(setupLockKey("BTCUSDT", "15m"), setupLockKey("BTCUSDT", "1H"));
 });
 

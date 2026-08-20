@@ -42,9 +42,9 @@ Salin `.env.example` menjadi `.env` dan ganti seluruh secret. Database lokal ter
 
 Seed development membuat:
 
-- `free@chartsense.local` — USER/FREE.
-- `premium@chartsense.local` — USER/PREMIUM.
-- `admin@chartsense.local` — ADMIN/PREMIUM.
+- `free@coinsecret.local` — USER/FREE.
+- `premium@coinsecret.local` — USER/PREMIUM.
+- `admin@coinsecret.local` — ADMIN/PREMIUM.
 
 Password hanya berasal dari `SEED_USER_PASSWORD` dan `SEED_ADMIN_PASSWORD`. Jangan menjalankan seed demo pada production.
 

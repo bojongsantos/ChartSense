@@ -36,7 +36,7 @@ export class MidtransGateway implements BillingGateway {
         transaction_details: { order_id: input.orderId, gross_amount: input.amount },
         item_details: [
           {
-            id: "chartsense-premium-30d",
+            id: "coinsecret-premium-30d",
             price: input.amount,
             quantity: 1,
             name: "Coin Secret Premium 30 hari",

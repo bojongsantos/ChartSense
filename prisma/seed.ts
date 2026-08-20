@@ -30,10 +30,10 @@ async function upsertUser(input: SeedUser) {
 }
 
 async function main() {
-  const sharedPassword = process.env.SEED_USER_PASSWORD ?? "ChartSense123!";
-  await upsertUser({ email: "free@chartsense.local", name: "Free User", password: sharedPassword, role: "USER", plan: "FREE" });
-  await upsertUser({ email: "premium@chartsense.local", name: "Premium User", password: sharedPassword, role: "USER", plan: "PREMIUM" });
-  await upsertUser({ email: "admin@chartsense.local", name: "ChartSense Admin", password: process.env.SEED_ADMIN_PASSWORD ?? sharedPassword, role: "ADMIN", plan: "PREMIUM" });
+  const sharedPassword = process.env.SEED_USER_PASSWORD ?? "CoinSecret123!";
+  await upsertUser({ email: "free@coinsecret.local", name: "Free User", password: sharedPassword, role: "USER", plan: "FREE" });
+  await upsertUser({ email: "premium@coinsecret.local", name: "Premium User", password: sharedPassword, role: "USER", plan: "PREMIUM" });
+  await upsertUser({ email: "admin@coinsecret.local", name: "Coin Secret Admin", password: process.env.SEED_ADMIN_PASSWORD ?? sharedPassword, role: "ADMIN", plan: "PREMIUM" });
   await prisma.featureGate.createMany({
     data: [
       { feature: "scannerExtended", free: false, premium: true },

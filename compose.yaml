@@ -1,20 +1,26 @@
+# Pinned so the project name comes from this file rather than from whatever
+# the checkout directory happens to be called. Without it, container, network
+# and volume names follow the folder, and a renamed project silently keeps
+# creating resources under its old name.
+name: coinsecret
+
 services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: chartsense
-      POSTGRES_PASSWORD: chartsense_dev
-      POSTGRES_DB: chartsense
+      POSTGRES_USER: coinsecret
+      POSTGRES_PASSWORD: coinsecret_dev
+      POSTGRES_DB: coinsecret
     ports:
       - "54329:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chartsense -d chartsense"]
+      test: ["CMD-SHELL", "pg_isready -U coinsecret -d coinsecret"]
       interval: 3s
       timeout: 3s
       retries: 20
     volumes:
-      - chartsense_postgres:/var/lib/postgresql/data
+      - coinsecret_postgres:/var/lib/postgresql/data
 
 volumes:
-  chartsense_postgres:
+  coinsecret_postgres:

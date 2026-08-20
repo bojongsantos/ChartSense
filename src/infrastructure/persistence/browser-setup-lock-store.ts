@@ -1,7 +1,7 @@
 import type { SetupLockedSnapshot, SetupLockPort } from "@/core/domain/analysis/setup-lock";
 import type { Timeframe } from "@/core/domain/models";
 
-const PREFIX = "chartsense:setup-lock:";
+const PREFIX = "coinsecret:setup-lock:";
 
 export function setupLockKey(symbol: string, timeframe: Timeframe): string {
   return `${PREFIX}${symbol}:${timeframe}`;

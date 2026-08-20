@@ -26,11 +26,11 @@ test("the domain a deployment was renamed from can be trusted alongside it", () 
   // The exact case that broke sign-in: two live domains, one trusted.
   const origins = resolveTrustedOrigins({
     appUrl: "https://coin-secret.vercel.app",
-    extra: "https://chartsense-brown.vercel.app",
+    extra: "https://domain-lama.example",
   });
   assert.deepEqual(origins, [
     "https://coin-secret.vercel.app",
-    "https://chartsense-brown.vercel.app",
+    "https://domain-lama.example",
   ]);
 });
 

@@ -11,8 +11,8 @@
 export type Theme = "dark" | "light";
 export type SidebarState = "expanded" | "collapsed";
 
-export const THEME_STORAGE_KEY = "coin-secret:theme";
-export const SIDEBAR_STORAGE_KEY = "coin-secret:sidebar";
+export const THEME_STORAGE_KEY = "coinsecret:theme";
+export const SIDEBAR_STORAGE_KEY = "coinsecret:sidebar";
 
 export const THEME_ATTRIBUTE = "data-theme";
 export const SIDEBAR_ATTRIBUTE = "data-sidebar";
