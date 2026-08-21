@@ -4,15 +4,16 @@ import { useState, type MutableRefObject } from "react";
 import { CalendarDays, Download, Loader2 } from "lucide-react";
 import type { PairSummary, PatternSummary, Timeframe, TradeLevel } from "@/core/domain/models";
 import { composeShareImage } from "@/presentation/features/analysis/share-image";
+import type { SignalPerformance } from "@/core/domain/analysis/signal-performance";
 
 interface AnalysisHeaderProps {
   pair: PairSummary;
   timeframe: Timeframe;
-  exchange: string;
   analyzedAt: string;
   pattern: PatternSummary;
   levels: TradeLevel[];
   riskReward: number;
+  performance: SignalPerformance | null;
   captureRef: MutableRefObject<(() => HTMLCanvasElement | null) | null>;
 }
 
@@ -28,11 +29,11 @@ const LABEL: Record<ShareState, string> = {
 export function AnalysisHeader({
   pair,
   timeframe,
-  exchange,
   analyzedAt,
   pattern,
   levels,
   riskReward,
+  performance,
   captureRef,
 }: AnalysisHeaderProps) {
   const [state, setState] = useState<ShareState>("idle");
@@ -66,6 +67,7 @@ export function AnalysisHeader({
         pattern,
         levels,
         riskReward,
+        performance,
       });
       if (!blob) throw new Error("Gambar gagal dibuat.");
 
@@ -96,9 +98,6 @@ export function AnalysisHeader({
             {pair.change24h.toFixed(2)}%
           </span>
         </div>
-        <p className="mt-0.5 text-[12px] text-muted">
-          {pair.name} · {timeframe} · {exchange}
-        </p>
       </div>
 
       <span className="ml-2 inline-flex items-center gap-1.5 text-[12px] text-muted-2">

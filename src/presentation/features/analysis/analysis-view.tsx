@@ -5,6 +5,7 @@ import { useRef } from "react";
 import type { HistoryRange } from "@/core/application/market-data/history-plan";
 import type { AnalysisResult, Timeframe } from "@/core/domain/models";
 import type { HistoryState } from "@/presentation/hooks/use-live-analysis";
+import { buildSignalPerformance } from "@/core/domain/analysis/signal-performance";
 import { priceDecimals } from "@/shared/lib/format";
 import { AnalysisHeader } from "@/presentation/features/analysis/analysis-header";
 import { ChartPanel } from "@/presentation/features/analysis/chart-panel";
@@ -31,6 +32,28 @@ export function AnalysisView({
   onLoadMoreHistory,
 }: AnalysisViewProps) {
   const precision = priceDecimals(data.pair.price);
+
+  // Measured from the candles already loaded for the chart, so the exported
+  // image can say what the setup did rather than only what it proposed.
+  const target1 = data.levels.find((level) => level.id === "target-1");
+  const target2 = data.levels.find((level) => level.id === "target-2");
+  const stop = data.levels.find((level) => level.id === "sl");
+  // Anchored to the bar the zone formed on, not to `detectedAt`: the analysis
+  // is rebuilt on every request, so its timestamp is always the present moment
+  // and would leave no bars after the signal to measure.
+  const setupShape = data.pattern.shape?.setup;
+  const signalZone = data.pattern.shape?.zones?.find((zone) => zone.id === setupShape?.zoneId);
+  const performance =
+    signalZone && target1 && target2 && stop
+      ? buildSignalPerformance({
+          candles: data.chartData.candles,
+          signalTime: signalZone.baseTime,
+          direction: data.pattern.trend === "bearish" ? "short" : "long",
+          target1: target1.price,
+          target2: target2.price,
+          stopLoss: stop.price,
+        })
+      : null;
   // Owned here so the header can snapshot the chart the panel renders.
   const captureRef = useRef<(() => HTMLCanvasElement | null) | null>(null);
 
@@ -39,11 +62,11 @@ export function AnalysisView({
       <AnalysisHeader
         pair={data.pair}
         timeframe={timeframe}
-        exchange={data.exchange}
         analyzedAt={data.analyzedAt}
         pattern={data.pattern}
         levels={data.levels}
         riskReward={data.riskReward}
+        performance={performance}
         captureRef={captureRef}
       />
 

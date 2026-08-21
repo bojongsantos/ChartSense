@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Layers, Loader2, RefreshCw } from "lucide-react";
 import type { SdScanHit } from "@/core/application/scanner/supply-demand-scan-service";
+import { dashboardSignals, MIN_DASHBOARD_CONFIDENCE } from "@/core/domain/analysis/signal-display";
 import { usePlan } from "@/presentation/features/access/plan-provider";
 import { useSdScan } from "@/presentation/hooks/use-scanner";
 import { Badge } from "@/presentation/ui/badge";
@@ -178,7 +179,9 @@ function ZoneCard({
         )}
 
         {total === 0 && (
-          <p className="px-3 py-5 text-center text-[11px] text-muted-2">Belum ada zona aktif.</p>
+          <p className="px-3 py-5 text-center text-[11px] text-muted-2">
+            Belum ada zona dengan confidence di atas {MIN_DASHBOARD_CONFIDENCE}%.
+          </p>
         )}
       </div>
 
@@ -197,6 +200,13 @@ function ZoneCard({
 
 export function SupplyDemandSection({ onSelect, membership }: { onSelect?: (symbol: string) => void; membership: WatchlistMembership }) {
   const { result, loading, error, refresh } = useSdScan();
+
+  // Filtered here rather than in the scanner: the full scan still feeds the
+  // Signals page and the alert sweep, which have their own reasons to see
+  // every zone. The counts below come from the filtered lists so the header
+  // and the "Lihat semua" button never advertise rows the table will not show.
+  const demand = result ? dashboardSignals(result.demand) : [];
+  const supply = result ? dashboardSignals(result.supply) : [];
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-surface p-3 sm:p-6">
@@ -240,16 +250,16 @@ export function SupplyDemandSection({ onSelect, membership }: { onSelect?: (symb
         <div className="grid gap-6 lg:grid-cols-2">
           <ZoneCard
             title="Demand Zones (Buy)"
-            hits={result.demand}
-            totalCount={result.demandTotal}
+            hits={demand}
+            totalCount={demand.length}
             tone="green"
             onSelect={onSelect}
             membership={membership}
           />
           <ZoneCard
             title="Supply Zones (Sell)"
-            hits={result.supply}
-            totalCount={result.supplyTotal}
+            hits={supply}
+            totalCount={supply.length}
             tone="red"
             onSelect={onSelect}
             membership={membership}

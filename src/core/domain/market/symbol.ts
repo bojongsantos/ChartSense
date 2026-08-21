@@ -27,7 +27,17 @@ export function filterSearchableSymbols(
   const needle = query.trim().toUpperCase().replace(/[\s/_-]+/g, "");
   if (!needle) return [];
   const blocked = new Set(excluded);
-  return catalog
-    .filter((symbol) => !blocked.has(symbol) && symbol.replace(/USDT$/, "").includes(needle))
-    .slice(0, limit);
+  const matches = catalog.filter(
+    (symbol) => !blocked.has(symbol) && symbol.replace(/USDT$/, "").includes(needle),
+  );
+
+  // Assets whose name *starts* with the query come first. Typing "E" should
+  // reach ETH, not bury it under every coin with an E somewhere in the middle;
+  // a plain substring match ordered by catalog position did exactly that.
+  const prefix: string[] = [];
+  const rest: string[] = [];
+  for (const symbol of matches) {
+    (symbol.replace(/USDT$/, "").startsWith(needle) ? prefix : rest).push(symbol);
+  }
+  return [...prefix, ...rest].slice(0, limit);
 }

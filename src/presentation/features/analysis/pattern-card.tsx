@@ -32,7 +32,7 @@ export function PatternCard({ pattern, levels, riskReward, precision }: PatternC
   return (
     <section className="card flex flex-col p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold">Zone Setup</h3>
+        <h3 className="text-[13px] font-semibold">Trading Plan</h3>
         <Badge tone={statusInvalid ? "negative" : "positive"}>{pattern.status}</Badge>
       </div>
 
@@ -56,11 +56,6 @@ export function PatternCard({ pattern, levels, riskReward, precision }: PatternC
           </div>
           <ProgressBar value={pattern.confidence} className="mt-1.5" />
         </div>
-        <Stat
-          label="Backtest Rate"
-          value={pattern.probability ? `${pattern.probability}%` : "—"}
-          sub={pattern.probability ? "resolved historical setups" : "insufficient samples"}
-        />
         <Stat label="Risk Level" value={pattern.riskLevel} />
       </div>
 

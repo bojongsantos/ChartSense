@@ -1,4 +1,5 @@
 import type { PatternSummary, TradeLevel } from "@/core/domain/models";
+import type { SignalPerformance } from "@/core/domain/analysis/signal-performance";
 import { formatPrice, priceDecimals } from "@/shared/lib/format";
 
 /** Palette mirrored from the app tokens so the export matches the product. */
@@ -18,9 +19,15 @@ const COLOR = {
   warning: "#f59e0b",
 } as const;
 
-/** Wordmark drawn into the footer so a shared image carries its source. */
+/**
+ * Wordmark drawn top-right, where a masthead is read first.
+ *
+ * Larger than the footer version it replaces: at 22px the name was legible
+ * only at full size, and these images are mostly looked at scaled down in a
+ * chat thread.
+ */
 const LOGO_SRC = "/logo/logo-text.svg";
-const LOGO_HEIGHT = 22;
+const LOGO_HEIGHT = 34;
 const LOGO_WIDTH = Math.round(LOGO_HEIGHT * 4.4);
 
 /**
@@ -54,7 +61,12 @@ const GAP = 20;
  * constant box instead and the shared image always has the same proportions.
  */
 const CHART_BOX_WIDTH = 720;
-const CHART_BOX_HEIGHT = 470;
+/**
+ * Tall enough for the trade plan beside it to finish with its performance
+ * block. At 470 the panel ran out of room by a few pixels and the block was
+ * silently skipped, which is the worst way for a section to be missing.
+ */
+const CHART_BOX_HEIGHT = 560;
 
 /** Rendered above 1x so text and candles stay crisp when the image is opened. */
 const EXPORT_SCALE = 2;
@@ -68,6 +80,12 @@ export interface ShareImageInput {
   pattern: PatternSummary;
   levels: TradeLevel[];
   riskReward: number;
+  /**
+   * What the setup has done since it appeared. Null while it is too new to
+   * have any history, which the panel says outright rather than drawing a
+   * flat line that would read as "went nowhere".
+   */
+  performance?: SignalPerformance | null;
 }
 
 function roundedRect(
@@ -112,6 +130,58 @@ function warningTriangle(ctx: CanvasRenderingContext2D, x: number, y: number, si
   ctx.fillStyle = COLOR.warning;
   ctx.fillRect(x + half - 0.7, y + size * 0.38, 1.4, size * 0.32);
   ctx.fillRect(x + half - 0.7, y + size * 0.78, 1.4, 1.4);
+  ctx.restore();
+}
+
+/**
+ * Closes since the signal, drawn as a line.
+ *
+ * Scaled to its own min/max rather than to the price axis: the point is the
+ * shape of what happened after the call, and on a 0.4% move against a full
+ * price scale that shape would be a flat line.
+ */
+function sparkline(
+  ctx: CanvasRenderingContext2D,
+  values: number[],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string,
+): void {
+  if (values.length < 2) return;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min;
+  const pointAt = (index: number) => {
+    const px = x + (index / (values.length - 1)) * w;
+    // A flat series has no span to divide by; park it on the mid-line.
+    const py = span > 1e-12 ? y + h - ((values[index] - min) / span) * h : y + h / 2;
+    return [px, py] as const;
+  };
+
+  ctx.save();
+  ctx.beginPath();
+  const [x0, y0] = pointAt(0);
+  ctx.moveTo(x0, y0);
+  for (let i = 1; i < values.length; i++) {
+    const [px, py] = pointAt(i);
+    ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  // The starting level, so the reader can see which side of it the line ends.
+  const [, startY] = pointAt(0);
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = COLOR.muted2;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, startY);
+  ctx.lineTo(x + w, startY);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -163,26 +233,28 @@ export async function composeShareImage(input: ShareImageInput): Promise<Blob | 
   ctx.fillStyle = COLOR.background;
   ctx.fillRect(0, 0, width, height);
 
-  // Header: pair, interval, price and 24h move.
+  // Header: symbol and price on the left, wordmark on the right. Price used to
+  // sit at the right edge; the logo now holds that spot, so the two share one
+  // line instead of fighting for it.
   const positive = input.change24h >= 0;
-  text(ctx, input.symbol, PADDING, PADDING + 22, { size: 22, weight: "700" });
-  text(ctx, `${input.timeframe} · Coin Secret`, PADDING, PADDING + 42, {
-    size: 12,
-    color: COLOR.muted2,
-  });
   const decimals = priceDecimals(input.price);
-  text(ctx, `$${formatPrice(input.price, decimals)}`, PADDING + chartWidth, PADDING + 22, {
-    size: 20,
+  text(ctx, input.symbol, PADDING, PADDING + 24, { size: 22, weight: "700" });
+  let headerCursor = PADDING + ctx.measureText(input.symbol).width + 14;
+  text(ctx, `$${formatPrice(input.price, decimals)}`, headerCursor, PADDING + 24, {
+    size: 19,
     weight: "700",
-    align: "right",
   });
-  text(
-    ctx,
-    `${positive ? "+" : ""}${input.change24h.toFixed(2)}%`,
-    PADDING + chartWidth,
-    PADDING + 42,
-    { size: 13, weight: "600", color: positive ? COLOR.positive : COLOR.negative, align: "right" },
-  );
+  headerCursor += ctx.measureText(`$${formatPrice(input.price, decimals)}`).width + 10;
+  text(ctx, `${positive ? "+" : ""}${input.change24h.toFixed(2)}%`, headerCursor, PADDING + 24, {
+    size: 13,
+    weight: "600",
+    color: positive ? COLOR.positive : COLOR.negative,
+  });
+  text(ctx, input.timeframe, PADDING, PADDING + 44, { size: 12, color: COLOR.muted2 });
+
+  if (logo) {
+    ctx.drawImage(logo, width - PADDING - LOGO_WIDTH, PADDING + 4, LOGO_WIDTH, LOGO_HEIGHT);
+  }
 
   // Chart.
   const chartTop = PADDING + headerHeight;
@@ -214,7 +286,7 @@ export async function composeShareImage(input: ShareImageInput): Promise<Blob | 
   const innerWidth = PANEL_WIDTH - 32;
   let cursor = chartTop + 28;
 
-  text(ctx, "Zone Setup", innerX, cursor, { size: 13, weight: "600" });
+  text(ctx, "Trading Plan", innerX, cursor, { size: 13, weight: "600" });
   text(ctx, input.pattern.status, panelX + PANEL_WIDTH - 16, cursor, {
     size: 11,
     weight: "600",
@@ -237,7 +309,6 @@ export async function composeShareImage(input: ShareImageInput): Promise<Blob | 
   const tileH = 54;
   const stats: [string, string, string?][] = [
     ["CONFIDENCE", `${input.pattern.confidence}%`],
-    ["BACKTEST RATE", input.pattern.probability ? `${input.pattern.probability}%` : "—"],
     ["RISK LEVEL", input.pattern.riskLevel],
   ];
   stats.forEach((stat, index) => {
@@ -255,7 +326,7 @@ export async function composeShareImage(input: ShareImageInput): Promise<Blob | 
     if (stat[2]) text(ctx, stat[2], x + 10 + ctx.measureText(stat[1]).width + 34, y + 40, { size: 10, color: COLOR.muted2 });
   });
 
-  cursor += tileH * 2 + 10 + 32;
+  cursor += tileH * Math.ceil(stats.length / 2) + (stats.length > 2 ? 10 : 0) + 32;
   text(ctx, "TRADE BREAKDOWN", innerX, cursor, { size: 10, weight: "600", color: COLOR.muted2 });
   cursor += 14;
 
@@ -291,6 +362,64 @@ export async function composeShareImage(input: ShareImageInput): Promise<Blob | 
     align: "right",
   });
 
+  // Performance since the signal. This is what makes the export worth keeping:
+  // the plan alone says what was hoped for, and a picture saved a week ago is
+  // only useful if it also says what the market did next.
+  cursor += 34 + 14;
+  const panelBottom = chartTop + panelHeight;
+  const perf = input.performance;
+  if (cursor + 74 <= panelBottom - 10) {
+    text(ctx, "PERFORMA SEJAK SINYAL", innerX, cursor, {
+      size: 10,
+      weight: "600",
+      color: COLOR.muted2,
+    });
+    cursor += 14;
+
+    if (!perf) {
+      text(ctx, "Sinyal baru — belum ada riwayat.", innerX, cursor + 14, {
+        size: 11,
+        color: COLOR.muted,
+      });
+    } else {
+      const up = perf.changePct >= 0;
+      const moveColor = up ? COLOR.positive : COLOR.negative;
+      text(
+        ctx,
+        `$${formatPrice(perf.priceAtSignal, decimals)} → $${formatPrice(perf.priceNow, decimals)}`,
+        innerX,
+        cursor + 12,
+        { size: 11, color: COLOR.muted },
+      );
+      text(
+        ctx,
+        `${up ? "+" : ""}${perf.changePct.toFixed(2)}%`,
+        innerX + innerWidth,
+        cursor + 12,
+        { size: 13, weight: "700", color: moveColor, align: "right" },
+      );
+
+      sparkline(ctx, perf.series, innerX, cursor + 20, innerWidth, 24, moveColor);
+
+      // Which levels the market actually reached, in the order they matter.
+      const reached: string[] = [];
+      if (perf.hitTarget2) reached.push("Target 2 ✓");
+      else if (perf.hitTarget1) reached.push("Target 1 ✓");
+      if (perf.hitStop) reached.push("Stop ✓");
+      const marks = reached.length > 0 ? reached.join("  ·  ") : "Belum menyentuh target/stop";
+      text(ctx, `${perf.barsSince} bar`, innerX, cursor + 58, {
+        size: 10,
+        color: COLOR.muted2,
+      });
+      text(ctx, marks, innerX + innerWidth, cursor + 58, {
+        size: 10,
+        weight: "600",
+        color: perf.hitStop ? COLOR.negative : perf.hitTarget1 ? COLOR.positive : COLOR.muted2,
+        align: "right",
+      });
+    }
+  }
+
   // Footer: the standing reminder on the left, the wordmark on the right.
   const footerBaseline = height - PADDING + 6;
   warningTriangle(ctx, PADDING, footerBaseline - 11, 12);
@@ -301,16 +430,6 @@ export async function composeShareImage(input: ShareImageInput): Promise<Blob | 
     footerBaseline,
     { size: 11, weight: "600", color: COLOR.warning },
   );
-
-  if (logo) {
-    ctx.drawImage(
-      logo,
-      width - PADDING - LOGO_WIDTH,
-      footerBaseline - LOGO_HEIGHT + 5,
-      LOGO_WIDTH,
-      LOGO_HEIGHT,
-    );
-  }
 
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }

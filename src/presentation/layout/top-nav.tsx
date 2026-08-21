@@ -6,7 +6,16 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Search, LogIn, LogOut, Settings, UserPlus } from "lucide-react";
 import { BrandMark, BRAND_NAME } from "@/presentation/ui/brand-logo";
 import { ThemeToggle } from "@/presentation/ui/theme-toggle";
-import { isValidBinanceSymbol, normalizeUsdtSymbol } from "@/core/domain/market/symbol";
+import {
+  filterSearchableSymbols,
+  isValidBinanceSymbol,
+  mergeSearchableSymbols,
+  normalizeUsdtSymbol,
+} from "@/core/domain/market/symbol";
+import { DEFAULT_WATCHLIST } from "@/config/default-watchlist";
+import { fetchSearchableSymbols } from "@/infrastructure/market-data/symbol-catalog-client";
+import { fetchEnabledWatchlist } from "@/infrastructure/persistence/watchlist-api-client";
+import { CoinIcon } from "@/presentation/ui/coin-icon";
 import { authClient, notifyAuthStateChanged } from "@/infrastructure/auth/auth-client";
 import type { CurrentUserDto } from "@/core/domain/identity";
 import { NotificationBell } from "@/presentation/features/notifications/notification-bell";
@@ -17,10 +26,17 @@ export function TopNav() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<CurrentUserDto | null>(null);
   const [userResolved, setUserResolved] = useState(false);
+  const [catalog, setCatalog] = useState<string[]>(DEFAULT_WATCHLIST);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const searchBoxRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    void Promise.all([fetchEnabledWatchlist(), fetchSearchableSymbols()])
+      .then(([preferred, all]) => setCatalog(mergeSearchableSymbols(preferred, all)))
+      .catch(() => setCatalog(DEFAULT_WATCHLIST));
     fetch("/api/me", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((data: { user?: CurrentUserDto } | null) => setCurrentUser(data?.user ?? null))
@@ -29,6 +45,9 @@ export function TopNav() {
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
+      }
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setSuggestOpen(false);
       }
     }
     function onShortcut(e: KeyboardEvent) {
@@ -44,6 +63,15 @@ export function TopNav() {
       document.removeEventListener("keydown", onShortcut);
     };
   }, []);
+
+  const suggestions = suggestOpen ? filterSearchableSymbols(catalog, searchQuery) : [];
+  const activeIndex = suggestions.length > 0 ? Math.min(highlight, suggestions.length - 1) : -1;
+
+  function goToSymbol(symbol: string) {
+    setSuggestOpen(false);
+    setSearchQuery(symbol.replace(/USDT$/, ""));
+    router.push(`/analysis?symbol=${encodeURIComponent(symbol)}`);
+  }
 
   function submitSearch(value = searchQuery) {
     let candidate = value.trim();
@@ -71,6 +99,7 @@ export function TopNav() {
         <BrandMark size={34} />
       </Link>
       <form
+        ref={searchBoxRef}
         className="relative hidden w-full max-w-xl md:block"
         onSubmit={(event) => {
           event.preventDefault();
@@ -82,23 +111,82 @@ export function TopNav() {
           ref={searchRef}
           type="search"
           value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
+          role="combobox"
+          aria-expanded={suggestions.length > 0}
+          aria-controls="symbol-suggestions"
+          aria-autocomplete="list"
+          autoComplete="off"
+          onChange={(event) => {
+            setSearchQuery(event.target.value);
+            setSuggestOpen(true);
+            setHighlight(0);
+          }}
+          onFocus={() => setSuggestOpen(true)}
           onKeyDown={(event) => {
+            if (event.key === "ArrowDown" && suggestions.length > 0) {
+              event.preventDefault();
+              setHighlight((index) => (index + 1) % suggestions.length);
+              return;
+            }
+            if (event.key === "ArrowUp" && suggestions.length > 0) {
+              event.preventDefault();
+              setHighlight((index) => (index - 1 + suggestions.length) % suggestions.length);
+              return;
+            }
+            if (event.key === "Escape") {
+              setSuggestOpen(false);
+              return;
+            }
             if (event.key === "Enter") {
               event.preventDefault();
-              submitSearch(event.currentTarget.value);
+              // A highlighted suggestion wins over the raw text: it is what the
+              // reader can see, and typing "eth" alone would otherwise resolve
+              // through the pair parser instead of the list they are looking at.
+              const picked = activeIndex >= 0 ? suggestions[activeIndex] : null;
+              if (picked) goToSymbol(picked);
+              else submitSearch(event.currentTarget.value);
             }
           }}
-          placeholder="Search coin, pair, or paste TradingView URL..."
+          placeholder="Cari coin, pair, atau tempel URL TradingView…"
           className="w-full rounded-lg border border-border bg-background py-2 pl-10 pr-14 text-[13px] text-foreground placeholder:text-muted-2 focus:border-accent/50 focus:outline-none"
         />
         <button
           type="submit"
-          aria-label="Search market"
+          aria-label="Cari market"
           className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium text-muted-2 hover:text-foreground"
         >
           ↵
         </button>
+
+        {suggestions.length > 0 && (
+          <ul
+            id="symbol-suggestions"
+            role="listbox"
+            className="absolute left-0 top-full z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+          >
+            {suggestions.map((symbol, index) => (
+              <li key={symbol} role="option" aria-selected={index === activeIndex}>
+                <button
+                  type="button"
+                  // mousedown, not click: the input blurs first and would close
+                  // the list before a click ever lands on it.
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    goToSymbol(symbol);
+                  }}
+                  onMouseEnter={() => setHighlight(index)}
+                  className={`flex w-full items-center gap-2.5 border-b border-border px-3 py-2 text-left transition-colors last:border-b-0 ${
+                    index === activeIndex ? "bg-accent/10" : "hover:bg-surface-2"
+                  }`}
+                >
+                  <CoinIcon symbol={symbol} size={24} />
+                  <span className="text-[12px] font-bold">{symbol.replace(/USDT$/, "")}</span>
+                  <span className="text-[10px] text-muted-2">{symbol}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </form>
 
       <div className="ml-auto flex items-center gap-3">

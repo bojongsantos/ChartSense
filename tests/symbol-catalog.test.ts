@@ -18,5 +18,22 @@ test("watchlist search finds base assets and excludes saved symbols", () => {
     ["BTCUSDT"],
   );
 
-  assert.deepEqual(results, ["WBTCUSDT", "BTCUSDC"]);
+  // BTCUSDC leads because its asset name starts with the query; WBTCUSDT only
+  // contains it. Ordering by catalog position instead buried exact prefixes.
+  assert.deepEqual(results, ["BTCUSDC", "WBTCUSDT"]);
+});
+
+test("a one-letter query reaches the asset that starts with it", () => {
+  const catalog = ["PEPEUSDT", "DOGEUSDT", "ETHUSDT", "ENAUSDT", "AVAXUSDT"];
+  assert.deepEqual(filterSearchableSymbols(catalog, "e"), [
+    "ETHUSDT",
+    "ENAUSDT",
+    "PEPEUSDT",
+    "DOGEUSDT",
+  ]);
+});
+
+test("the result count stays capped after reordering", () => {
+  const catalog = ["EAUSDT", "EBUSDT", "ECUSDT", "PEUSDT", "QEUSDT"];
+  assert.deepEqual(filterSearchableSymbols(catalog, "e", [], 2), ["EAUSDT", "EBUSDT"]);
 });
